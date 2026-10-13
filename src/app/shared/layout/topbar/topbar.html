@@ -1,0 +1,41 @@
+<header class="flex h-14 items-center justify-between border-b border-border bg-surface px-4 shadow-panel sm:px-6">
+  <label class="relative w-full max-w-sm">
+    <span class="sr-only">Buscar incidencias y tickets</span>
+    <svg
+      aria-hidden="true"
+      class="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-text-muted"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </svg>
+    <input
+      class="h-9 w-full rounded-control border border-border bg-surface-muted pl-9 pr-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+      placeholder="Buscar incidencias, tickets..."
+      type="search"
+    >
+  </label>
+
+  <div class="ml-4 flex shrink-0 items-center gap-3 sm:gap-5">
+    <span class="inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-low px-2 py-1 text-label-sm text-on-surface">
+      <span class="h-2 w-2 animate-pulse rounded-full bg-status-closed"></span>
+      Sistemas operativos
+    </span>
+    <button
+      aria-label="Notificaciones"
+      class="relative flex h-9 w-9 items-center justify-center rounded-control text-text-muted transition-colors hover:bg-surface-muted hover:text-neutral"
+      type="button"
+    >
+      <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+      </svg>
+      <span class="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive ring-2 ring-surface"></span>
+    </button>
+    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-label-sm font-semibold text-primary">
+      CM
+    </span>
+  </div>
+</header>

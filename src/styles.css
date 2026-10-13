@@ -12,8 +12,11 @@
   --color-background: #f8fafc;
   --color-surface: #ffffff;
   --color-surface-muted: #f8fafc;
+  --color-surface-container-low: #f2f3ff;
   --color-border: #e2e8f0;
   --color-border-strong: #cbd5e1;
+  --color-outline-variant: #c4c5d5;
+  --color-on-surface: #131b2e;
   --color-text-secondary: #334155;
   --color-text-muted: #64748b;
 

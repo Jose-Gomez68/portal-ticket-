@@ -1,0 +1,14 @@
+:host {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 30;
+  display: block;
+}
+
+@media (min-width: 1024px) {
+  :host {
+    left: 15rem;
+  }
+}
