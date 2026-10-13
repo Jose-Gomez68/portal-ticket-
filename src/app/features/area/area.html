@@ -1,0 +1,332 @@
+<main class="min-h-screen bg-background p-4 text-neutral sm:p-6 lg:p-8">
+  <div class="mx-auto max-w-[1440px] space-y-6">
+    <section class="space-y-4">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-label-sm uppercase text-text-muted">Gestión de incidencias / Catálogo</p>
+          <h1 class="mt-1 text-headline-lg font-semibold tracking-tight">Áreas</h1>
+          <p class="mt-1 text-body-sm text-text-muted">
+            Administra las áreas utilizadas para clasificar los tickets.
+          </p>
+        </div>
+        <button class="btn btn-primary w-full sm:w-auto" type="button" (click)="openModal()">
+          <span aria-hidden="true" class="text-lg leading-none">+</span>
+          Nueva área
+        </button>
+      </div>
+
+      <div class="flex flex-wrap gap-3" aria-label="Resumen de áreas">
+        <div class="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 shadow-panel">
+          <span class="h-2 w-2 rounded-full bg-primary"></span>
+          <span class="font-semibold">{{ totalCount() }}</span>
+          <span class="text-text-muted">Áreas totales</span>
+        </div>
+        <!-- <div class="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 shadow-panel">
+          <span class="h-2 w-2 rounded-full bg-secondary"></span>
+          <span class="font-semibold">{{ projectCount() }}</span>
+          <span class="text-text-muted">Proyectos vinculados</span>
+        </div> -->
+        <div class="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 shadow-panel">
+          <span class="h-2 w-2 rounded-full bg-status-closed"></span>
+          <span class="font-semibold text-status-closed">{{ activeCount() }}</span>
+          <span class="text-text-muted">Activas</span>
+        </div>
+        <div class="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 shadow-panel">
+          <span class="h-2 w-2 rounded-full bg-text-muted"></span>
+          <span class="font-semibold text-text-secondary">{{ inactiveCount() }}</span>
+          <span class="text-text-muted">Inactivas</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-lg border border-border bg-surface p-3 shadow-panel lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <label class="relative block min-w-60">
+          <span class="sr-only">Buscar áreas</span>
+          <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-text-muted">⌕</span>
+          <input
+            class="h-9 w-full rounded-control border border-border bg-surface pl-9 pr-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+            type="search"
+            placeholder="Buscar área..."
+            [value]="searchTerm()"
+            (input)="updateSearch($event)"
+          >
+        </label>
+
+       <!--  <label>
+          <span class="sr-only">Filtrar por proyecto</span>
+          <select
+            class="h-9 w-full cursor-pointer rounded-control border border-border bg-surface px-3 text-body-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 sm:w-auto"
+            [value]="selectedProject()"
+            (change)="updateProjectFilter($event)"
+          >
+            <option value="">Todos los proyectos</option>
+            <option value="Visión">Visión</option>
+            <option value="Prenómina">Prenómina</option>
+            <option value="Soporte Técnico">Soporte Técnico</option>
+          </select>
+        </label> -->
+
+        <label>
+          <span class="sr-only">Filtrar por estado</span>
+          <select
+            class="h-9 w-full cursor-pointer rounded-control border border-border bg-surface px-3 text-body-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 sm:w-auto"
+            [value]="selectedStatus()"
+            (change)="updateStatusFilter($event)"
+          >
+            <option value="">Todos los estados</option>
+            <option value="active">Activas</option>
+            <option value="inactive">Inactivas</option>
+          </select>
+        </label>
+      </div>
+
+      <p class="text-body-sm text-text-muted">
+        {{ filteredAreas().length }} de {{ totalCount() }} áreas
+      </p>
+    </section>
+
+    <section class="overflow-hidden rounded-lg border border-border bg-surface shadow-panel" aria-label="Listado de áreas">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] border-collapse text-left">
+          <thead>
+            <tr class="border-b border-border bg-surface-muted text-label-sm uppercase text-text-muted">
+              <th class="px-4 py-3 font-semibold" scope="col">Nombre del área</th>
+              <th class="px-4 py-3 font-semibold" scope="col">Descripción</th>
+              <!-- <th class="px-4 py-3 font-semibold" scope="col">Proyecto asociado</th> -->
+              <th class="px-4 py-3 text-center font-semibold" scope="col">Tickets</th>
+              <th class="px-4 py-3 font-semibold" scope="col">Estado</th>
+              <th class="px-4 py-3 font-semibold" scope="col">Fecha de creación</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            @for (area of visibleAreas(); track area.id) {
+              <tr class="transition-colors hover:bg-surface-muted">
+                <td class="px-4 py-3.5">
+                  <div class="flex items-center gap-3">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-primary/10 font-semibold text-primary">
+                      {{ area.name.charAt(0).toUpperCase() }}
+                    </span>
+                    <span class="font-semibold text-neutral">{{ area.name }}</span>
+                  </div>
+                </td>
+                <td class="max-w-sm truncate px-4 py-3.5 text-body-sm text-text-secondary" [title]="area.description">
+                  {{ area.description || 'Sin descripción' }}
+                </td>
+                <!-- <td class="px-4 py-3.5">
+                  <span class="inline-flex rounded-full border border-border bg-surface-muted px-2.5 py-1 text-label-sm text-text-secondary">
+                    {{ area.project }}
+                  </span>
+                </td> -->
+                <td class="px-4 py-3.5 text-center">
+                  <span class="inline-flex rounded-control bg-primary/10 px-2 py-1 text-label-sm font-semibold text-primary">
+                    {{ area.ticketCount }}
+                  </span>
+                </td>
+                <td class="px-4 py-3.5">
+                  @if (area.active) {
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-status-closed-border bg-status-closed-bg px-2.5 py-1 text-label-sm text-status-closed">
+                      <span class="h-1.5 w-1.5 rounded-full bg-status-closed"></span>
+                      Activa
+                    </span>
+                  } @else {
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-label-sm text-text-muted">
+                      <span class="h-1.5 w-1.5 rounded-full bg-text-muted"></span>
+                      Inactiva
+                    </span>
+                  }
+                </td>
+                <td class="whitespace-nowrap px-4 py-3.5 text-body-sm text-text-muted">
+                  {{ area.createdAt }}
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="px-4 py-12 text-center text-body-sm text-text-muted" colspan="6">
+                  No se encontraron áreas con esos filtros.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="flex flex-col gap-3 border-t border-border bg-surface px-4 py-3 text-body-sm text-text-secondary sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <span aria-live="polite">
+            Mostrando
+            <span class="font-semibold text-neutral">{{ firstVisibleItem() }}-{{ lastVisibleItem() }}</span>
+            de
+            <span class="font-semibold text-neutral">{{ filteredAreas().length }}</span>
+            áreas
+          </span>
+          <label class="flex items-center gap-2 sm:ml-4">
+            <span class="text-label-sm text-text-muted">Filas por página:</span>
+            <select
+              aria-label="Filas por página"
+              class="h-8 rounded-control border border-border bg-surface-muted px-2 text-label-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              [value]="pageSize()"
+              (change)="updatePageSize($event)"
+            >
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+        </div>
+
+        <nav aria-label="Paginación de áreas" class="flex items-center gap-1">
+          <button
+            aria-label="Página anterior"
+            class="flex h-8 w-8 items-center justify-center rounded-control border border-border text-text-secondary transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
+            type="button"
+            [disabled]="currentPage() <= 1"
+            (click)="goToPage(currentPage() - 1)"
+          >
+            <span aria-hidden="true">‹</span>
+          </button>
+
+          @for (page of pageNumbers(); track page; let index = $index) {
+            @if (index === 0 && page > 1) {
+              <span aria-hidden="true" class="px-1 text-text-muted">...</span>
+            }
+            @if (index > 0 && page - pageNumbers()[index - 1] > 1) {
+              <span aria-hidden="true" class="px-1 text-text-muted">...</span>
+            }
+            <button
+              [attr.aria-current]="currentPage() === page ? 'page' : null"
+              [attr.aria-label]="'Página ' + page"
+              class="flex h-8 min-w-8 items-center justify-center rounded-control px-2 text-label-md transition-colors"
+              [class.bg-primary]="currentPage() === page"
+              [class.font-semibold]="currentPage() === page"
+              [class.text-white]="currentPage() === page"
+              [class.text-neutral]="currentPage() !== page"
+              [class.hover:bg-surface-muted]="currentPage() !== page"
+              type="button"
+              (click)="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+          }
+
+          <button
+            aria-label="Página siguiente"
+            class="flex h-8 w-8 items-center justify-center rounded-control border border-border text-text-secondary transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
+            type="button"
+            [disabled]="currentPage() >= totalPages()"
+            (click)="goToPage(currentPage() + 1)"
+          >
+            <span aria-hidden="true">›</span>
+          </button>
+        </nav>
+      </footer>
+    </section>
+  </div>
+
+  @if (isModalOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]"
+      role="presentation"
+      (click)="closeModal()"
+      (keydown.escape)="closeModal()"
+    >
+      <section
+        aria-labelledby="area-modal-title"
+        aria-modal="true"
+        class="w-full max-w-lg overflow-hidden rounded-lg border border-border bg-surface shadow-modal"
+        role="dialog"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="flex items-start justify-between border-b border-border px-6 py-5">
+          <div>
+            <h2 class="text-headline-sm font-semibold" id="area-modal-title">Nueva área</h2>
+            <p class="mt-1 text-body-sm text-text-muted">
+              Registra un área para organizar los tickets de soporte.
+            </p>
+          </div>
+          <button
+            aria-label="Cerrar"
+            class="rounded-control px-2 py-1 text-xl text-text-muted transition-colors hover:bg-surface-muted hover:text-neutral"
+            type="button"
+            (click)="closeModal()"
+          >
+            ×
+          </button>
+        </header>
+
+        <form class="space-y-4 p-6" (ngSubmit)="saveArea()">
+          <div class="space-y-1.5">
+            <label class="block text-label-md font-medium" for="area-name">
+              Nombre del área <span class="text-destructive">*</span>
+            </label>
+            <input
+              id="area-name"
+              class="h-9 w-full rounded-control border border-border bg-surface px-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              name="areaName"
+              [(ngModel)]="newArea.name"
+              placeholder="Ej. Aplicaciones móviles"
+              required
+              maxlength="80"
+            >
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="block text-label-md font-medium" for="area-project">
+              Proyecto asignado <span class="text-destructive">*</span>
+            </label>
+            <select
+              id="area-project"
+              class="h-9 w-full cursor-pointer rounded-control border border-border bg-surface px-3 text-body-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              name="areaProject"
+              [(ngModel)]="newArea.project"
+              required
+            >
+              <option value="" disabled>Selecciona un proyecto</option>
+              <option value="Visión">Visión</option>
+              <option value="Prenómina">Prenómina</option>
+              <option value="Soporte Técnico">Soporte Técnico</option>
+            </select>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-label-md font-medium" for="area-description">Descripción</label>
+              <span class="font-mono text-code-sm text-text-muted">{{ newArea.description.length }} / 200</span>
+            </div>
+            <textarea
+              id="area-description"
+              class="w-full resize-none rounded-control border border-border bg-surface p-2.5 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              name="areaDescription"
+              [(ngModel)]="newArea.description"
+              maxlength="200"
+              placeholder="Describe el alcance de esta área..."
+              rows="3"
+            ></textarea>
+          </div>
+
+          <label class="flex items-center justify-between gap-4 rounded-control border border-border bg-surface-muted p-3">
+            <span>
+              <span class="block text-label-md font-medium">Estado inicial</span>
+              <span class="mt-1 block text-body-sm text-text-muted">Disponible para nuevos tickets.</span>
+            </span>
+            <input
+              class="h-4 w-4 accent-primary"
+              name="areaActive"
+              type="checkbox"
+              [(ngModel)]="newArea.active"
+            >
+          </label>
+
+          <footer class="flex justify-end gap-2 border-t border-border pt-4">
+            <button class="btn btn-secondary btn-compact" type="button" (click)="closeModal()">
+              Cancelar
+            </button>
+            <button class="btn btn-primary btn-compact" type="submit">
+              Guardar área
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</main>
