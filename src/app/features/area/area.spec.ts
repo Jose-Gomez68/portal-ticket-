@@ -21,6 +21,7 @@ describe('Area', () => {
     getAll: vi.fn(() => of([createArea(1, 'Área inicial')])),
     create: vi.fn((area) => of({ ...createArea(2, area.name), ...area })),
     update: vi.fn((area) => of({ ...createArea(area.areaID, area.name), ...area })),
+    delete: vi.fn(() => of(undefined)),
   };
 
   beforeEach(async () => {
@@ -62,6 +63,7 @@ describe('Area', () => {
     });
     expect(component['areas']()[0].name).toBe('Aplicaciones móviles');
     expect(component['isModalOpen']()).toBe(false);
+    expect(component['toastMessage']()?.title).toBe('Área creada');
   });
 
   it('updates an area without sending generated dates or audit fields', () => {
@@ -83,6 +85,32 @@ describe('Area', () => {
     });
     expect(component['areas']()[0].name).toBe('Área editada');
     expect(component['isModalOpen']()).toBe(false);
+    expect(component['toastMessage']()?.title).toBe('Área actualizada');
+  });
+
+  it('deletes an area after confirmation and updates the list', () => {
+    const area = createArea(1, 'Área inicial');
+    component['areas'].set([area]);
+    component['openDeleteConfirmation'](area);
+
+    component['deleteArea']();
+
+    expect(areaService.delete).toHaveBeenCalledWith(1);
+    expect(component['areas']()).toEqual([]);
+    expect(component['areaToDelete']()).toBeNull();
+    expect(component['toastMessage']()?.title).toBe('Área eliminada');
+  });
+
+  it('does not delete an area when confirmation is canceled', () => {
+    const area = createArea(1, 'Área inicial');
+    component['areas'].set([area]);
+    component['openDeleteConfirmation'](area);
+
+    component['closeDeleteConfirmation']();
+
+    expect(areaService.delete).not.toHaveBeenCalled();
+    expect(component['areas']()).toEqual([area]);
+    expect(component['areaToDelete']()).toBeNull();
   });
 
   it('paginates the filtered areas and reports the visible range', () => {
@@ -94,15 +122,11 @@ describe('Area', () => {
     );
 
     expect(component['visibleAreas']()).toHaveLength(10);
-    expect(component['firstVisibleItem']()).toBe(1);
-    expect(component['lastVisibleItem']()).toBe(10);
     expect(component['totalPages']()).toBe(2);
 
     component['goToPage'](2);
 
     expect(component['visibleAreas']()).toHaveLength(5);
-    expect(component['firstVisibleItem']()).toBe(11);
-    expect(component['lastVisibleItem']()).toBe(15);
   });
 
   it('resets to the first page when filters change', () => {

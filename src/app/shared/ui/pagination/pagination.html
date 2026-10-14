@@ -1,0 +1,79 @@
+<footer
+  class="flex flex-col gap-3 px-4 py-3 text-body-sm text-text-secondary sm:flex-row sm:items-center sm:justify-between"
+  [class.border-t]="embedded"
+  [class.border-border]="embedded"
+  [class.bg-surface]="embedded"
+  [class.rounded-panel]="!embedded"
+  [class.border]="!embedded"
+  [class.bg-surface]="!embedded"
+  [class.pagination-card]="!embedded"
+>
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <span aria-live="polite">
+      Mostrando
+      <span class="font-semibold text-neutral">{{ firstVisibleItem }}-{{ lastVisibleItem }}</span>
+      de
+      <span class="font-semibold text-neutral">{{ totalItems }}</span>
+      {{ itemLabel }}
+    </span>
+    <label class="flex items-center gap-2 sm:ml-4">
+      <span class="text-label-sm text-text-muted">Filas por página:</span>
+      <select
+        aria-label="Filas por página"
+        class="h-8 rounded-control border border-border bg-surface-muted px-2 text-label-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+        [value]="pageSize"
+        (change)="updatePageSize($event)"
+      >
+        <option value="5">5</option>
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+      </select>
+    </label>
+  </div>
+
+  <nav [attr.aria-label]="navigationLabel" class="flex items-center gap-1">
+    <button
+      aria-label="Página anterior"
+      class="flex h-8 w-8 items-center justify-center rounded-control border border-border text-text-secondary transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
+      type="button"
+      [disabled]="effectiveCurrentPage <= 1"
+      (click)="goToPage(effectiveCurrentPage - 1)"
+    >
+      <span aria-hidden="true">‹</span>
+    </button>
+
+    @for (page of pageNumbers; track page; let index = $index) {
+      @if (index === 0 && page > 1) {
+        <span aria-hidden="true" class="px-1 text-text-muted">...</span>
+      }
+      @if (index > 0 && page - pageNumbers[index - 1] > 1) {
+        <span aria-hidden="true" class="px-1 text-text-muted">...</span>
+      }
+      <button
+        [attr.aria-current]="effectiveCurrentPage === page ? 'page' : null"
+        [attr.aria-label]="'Página ' + page"
+        class="flex h-8 min-w-8 items-center justify-center rounded-control px-2 text-label-md transition-colors"
+        [class.bg-primary]="effectiveCurrentPage === page"
+        [class.font-semibold]="effectiveCurrentPage === page"
+        [class.text-white]="effectiveCurrentPage === page"
+        [class.text-neutral]="effectiveCurrentPage !== page"
+        [class.hover:bg-surface-muted]="effectiveCurrentPage !== page"
+        type="button"
+        (click)="goToPage(page)"
+      >
+        {{ page }}
+      </button>
+    }
+
+    <button
+      aria-label="Página siguiente"
+      class="flex h-8 w-8 items-center justify-center rounded-control border border-border text-text-secondary transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
+      type="button"
+      [disabled]="effectiveCurrentPage >= totalPages"
+      (click)="goToPage(effectiveCurrentPage + 1)"
+    >
+      <span aria-hidden="true">›</span>
+    </button>
+  </nav>
+</footer>

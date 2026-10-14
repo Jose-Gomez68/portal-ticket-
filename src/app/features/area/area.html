@@ -1,15 +1,13 @@
-<main class="area-view bg-surface-container-low p-4 text-neutral sm:p-6 lg:p-8">
+<main class="area-view bg-surface-container-low p-4 text-neutral sm:p-6 lg:p-8" (click)="closeActionsMenu()">
   <div class="mx-auto max-w-[1440px] space-y-6">
     @if (errorMessage()) {
-      <p class="rounded-control border border-status-closed-border bg-status-closed-bg p-3 text-body-sm text-status-closed" role="alert">
-        {{ errorMessage() }}
-      </p>
+      <app-error-alert [message]="errorMessage()" />
     }
 
     <section class="space-y-4">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p class="text-label-sm uppercase text-text-muted">Gestión de incidencias / Catálogo</p>
+          <!-- <p class="text-label-sm uppercase text-text-muted">Gestión de incidencias / Catálogo</p> -->
           <h1 class="mt-1 text-headline-lg font-semibold tracking-tight">Áreas</h1>
           <p class="mt-1 text-body-sm text-text-muted">
             Administra las áreas utilizadas para clasificar los tickets.
@@ -147,13 +145,45 @@
                   {{ area.createdDate | date: 'dd/MM/yyyy' }}
                 </td>
                 <td class="px-4 py-3.5 text-right">
-                  <button
-                    class="btn btn-secondary btn-compact"
-                    type="button"
-                    (click)="editArea(area)"
+                  <div
+                    class="relative inline-block text-left"
+                    (click)="$event.stopPropagation()"
+                    (keydown.escape)="closeActionsMenu()"
                   >
-                    Editar
-                  </button>
+                    <button
+                      [attr.aria-expanded]="openActionsMenuAreaId() === area.areaID"
+                      [attr.aria-label]="'Acciones para ' + area.name"
+                      aria-haspopup="menu"
+                      class="flex h-9 w-9 items-center justify-center rounded-control border border-border text-lg leading-none text-text-secondary transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-focus/30"
+                      type="button"
+                      (click)="toggleActionsMenu(area.areaID, $event)"
+                    >
+                      <span aria-hidden="true">⋮</span>
+                    </button>
+                    @if (openActionsMenuAreaId() === area.areaID) {
+                      <div
+                        class="absolute right-0 z-20 mt-1 w-36 rounded-control border border-border bg-surface py-1 text-left shadow-panel"
+                        role="menu"
+                      >
+                        <button
+                          class="block w-full px-3 py-2 text-left text-body-sm text-neutral transition-colors hover:bg-surface-muted"
+                          role="menuitem"
+                          type="button"
+                          (click)="editArea(area)"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          class="block w-full px-3 py-2 text-left text-body-sm text-status-closed transition-colors hover:bg-surface-muted"
+                          role="menuitem"
+                          type="button"
+                          (click)="openDeleteConfirmation(area)"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    }
+                  </div>
                 </td>
               </tr>
             } @empty {
@@ -167,75 +197,16 @@
         </table>
       </div>
 
-      <footer class="flex flex-col gap-3 border-t border-border bg-surface px-4 py-3 text-body-sm text-text-secondary sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span aria-live="polite">
-            Mostrando
-            <span class="font-semibold text-neutral">{{ firstVisibleItem() }}-{{ lastVisibleItem() }}</span>
-            de
-            <span class="font-semibold text-neutral">{{ filteredAreas().length }}</span>
-            áreas
-          </span>
-          <label class="flex items-center gap-2 sm:ml-4">
-            <span class="text-label-sm text-text-muted">Filas por página:</span>
-            <select
-              aria-label="Filas por página"
-              class="h-8 rounded-control border border-border bg-surface-muted px-2 text-label-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
-              [value]="pageSize()"
-              (change)="updatePageSize($event)"
-            >
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-            </select>
-          </label>
-        </div>
-
-        <nav aria-label="Paginación de áreas" class="flex items-center gap-1">
-          <button
-            aria-label="Página anterior"
-            class="flex h-8 w-8 items-center justify-center rounded-control border border-border text-text-secondary transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
-            type="button"
-            [disabled]="currentPage() <= 1"
-            (click)="goToPage(currentPage() - 1)"
-          >
-            <span aria-hidden="true">‹</span>
-          </button>
-
-          @for (page of pageNumbers(); track page; let index = $index) {
-            @if (index === 0 && page > 1) {
-              <span aria-hidden="true" class="px-1 text-text-muted">...</span>
-            }
-            @if (index > 0 && page - pageNumbers()[index - 1] > 1) {
-              <span aria-hidden="true" class="px-1 text-text-muted">...</span>
-            }
-            <button
-              [attr.aria-current]="currentPage() === page ? 'page' : null"
-              [attr.aria-label]="'Página ' + page"
-              class="flex h-8 min-w-8 items-center justify-center rounded-control px-2 text-label-md transition-colors"
-              [class.bg-primary]="currentPage() === page"
-              [class.font-semibold]="currentPage() === page"
-              [class.text-white]="currentPage() === page"
-              [class.text-neutral]="currentPage() !== page"
-              [class.hover:bg-surface-muted]="currentPage() !== page"
-              type="button"
-              (click)="goToPage(page)"
-            >
-              {{ page }}
-            </button>
-          }
-
-          <button
-            aria-label="Página siguiente"
-            class="flex h-8 w-8 items-center justify-center rounded-control border border-border text-text-secondary transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-40"
-            type="button"
-            [disabled]="currentPage() >= totalPages()"
-            (click)="goToPage(currentPage() + 1)"
-          >
-            <span aria-hidden="true">›</span>
-          </button>
-        </nav>
-      </footer>
+      <app-pagination
+        [totalItems]="filteredAreas().length"
+        [currentPage]="currentPage()"
+        [pageSize]="pageSize()"
+        itemLabel="áreas"
+        navigationLabel="Paginación de áreas"
+        [embedded]="true"
+        (pageChange)="goToPage($event)"
+        (pageSizeChange)="updatePageSize($event)"
+      />
     </section>
   </div>
 
@@ -355,6 +326,69 @@
           </footer>
         </form>
       </section>
+    </div>
+  }
+
+  @if (areaToDelete(); as area) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]"
+      role="presentation"
+      (click)="closeDeleteConfirmation()"
+      (keydown.escape)="closeDeleteConfirmation()"
+    >
+      <section
+        aria-labelledby="area-delete-title"
+        aria-modal="true"
+        class="w-full max-w-md overflow-hidden rounded-lg border border-border bg-surface shadow-modal"
+        role="alertdialog"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="space-y-3 p-6">
+          <h2 class="text-headline-sm font-semibold" id="area-delete-title">Eliminar área</h2>
+          <p class="text-body-sm text-text-secondary">
+            ¿Estás seguro de que deseas eliminar el área
+            <span class="font-semibold text-neutral">“{{ area.name }}”</span>?
+            Esta acción no se puede deshacer.
+          </p>
+          @if (errorMessage()) {
+            <app-error-alert [message]="errorMessage()" />
+          }
+        </div>
+        <footer class="flex justify-end gap-2 border-t border-border px-6 py-4">
+          <button
+            class="btn btn-secondary btn-compact"
+            type="button"
+            [disabled]="isDeleting()"
+            (click)="closeDeleteConfirmation()"
+          >
+            Cancelar
+          </button>
+          <button
+            class="btn btn-primary btn-compact inline-flex items-center gap-2"
+            type="button"
+            [disabled]="isDeleting()"
+            [attr.aria-busy]="isDeleting()"
+            (click)="deleteArea()"
+          >
+            @if (isDeleting()) {
+              <span aria-hidden="true" class="area-loading-spinner"></span>
+              <span>Eliminando...</span>
+            } @else {
+              <span>Eliminar área</span>
+            }
+          </button>
+        </footer>
+      </section>
+    </div>
+  }
+
+  @if (toastMessage(); as toast) {
+    <div class="fixed bottom-6 right-6 z-[60]">
+      <app-feedback-toast
+        [title]="toast.title"
+        [message]="toast.message"
+        (dismissed)="dismissToast()"
+      />
     </div>
   }
 </main>

@@ -33,6 +33,26 @@ export class AreaService {
       map((response) => unwrapData(response, isAreaModel)),
     );
   }
+
+  delete(areaID: number): Observable<void> {
+    return this.api.delete<unknown>(`${this.endpoint}/DeleteArea/${areaID}`).pipe(
+      map((response) => unwrapDeleteResponse(response)),
+    );
+  }
+}
+
+function unwrapDeleteResponse(response: unknown): void {
+  if (typeof response !== 'object' || response === null) {
+    throw new Error('La respuesta de la API tiene un formato inválido.');
+  }
+
+  const envelope = response as Record<string, unknown>;
+  if (envelope['success'] !== true) {
+    const message = typeof envelope['message'] === 'string'
+      ? envelope['message']
+      : 'La API indicó que la operación no fue exitosa.';
+    throw new Error(message);
+  }
 }
 
 function unwrapData<T>(response: unknown, isExpectedData: (data: unknown) => data is T): T {

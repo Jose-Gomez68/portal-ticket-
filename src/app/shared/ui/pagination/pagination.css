@@ -1,0 +1,7 @@
+:host {
+  display: block;
+}
+
+.pagination-card {
+  border-color: color-mix(in srgb, var(--color-border) 60%, transparent);
+}

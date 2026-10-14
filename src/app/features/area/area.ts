@@ -1,11 +1,14 @@
 import { DatePipe } from '@angular/common';
 import { computed, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ErrorAlert } from '../../shared/ui/error-alert/error-alert';
+import { FeedbackToast } from '../../shared/ui/feedback-toast/feedback-toast';
+import { Pagination } from '../../shared/ui/pagination/pagination';
 import { AreaService } from './service/area.service';
 import type { AreaModel, NewAreaModel, UpdateAreaModel } from './model/area.model';
 
 @Component({
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, ErrorAlert, FeedbackToast, Pagination],
   selector: 'app-area',
   styleUrl: './area.css',
   templateUrl: './area.html',
@@ -15,13 +18,17 @@ export class Area implements OnInit {
 
   protected readonly areas = signal<AreaModel[]>([]);
   protected readonly searchTerm = signal('');
-  protected readonly selectedStatus = signal('');
+  protected readonly selectedStatus = signal('active');
   protected readonly currentPage = signal(1);
   protected readonly pageSize = signal(10);
   protected readonly isModalOpen = signal(false);
   protected readonly editingAreaId = signal<number | null>(null);
+  protected readonly openActionsMenuAreaId = signal<number | null>(null);
+  protected readonly areaToDelete = signal<AreaModel | null>(null);
   protected readonly isSaving = signal(false);
+  protected readonly isDeleting = signal(false);
   protected readonly errorMessage = signal('');
+  protected readonly toastMessage = signal<{ title: string; message: string } | null>(null);
   protected readonly totalCount = computed(() => this.areas().length);
   protected readonly activeCount = computed(
     () => this.areas().filter((area) => area.active).length,
@@ -47,51 +54,12 @@ export class Area implements OnInit {
   protected readonly totalPages = computed(() =>
     Math.max(1, Math.ceil(this.filteredAreas().length / this.pageSize())),
   );
-  protected readonly pageNumbers = computed(() => {
-    const totalPages = this.totalPages();
-    const currentPage = Math.min(this.currentPage(), totalPages);
-
-    if (totalPages <= 5) {
-      return Array.from({ length: totalPages }, (_, index) => index + 1);
-    }
-
-    const pages = new Set([1, totalPages]);
-    for (
-      let page = Math.max(2, currentPage - 1);
-      page <= Math.min(totalPages - 1, currentPage + 1);
-      page++
-    ) {
-      pages.add(page);
-    }
-
-    if (currentPage <= 3) {
-      pages.add(2);
-      pages.add(3);
-    } else if (currentPage >= totalPages - 2) {
-      pages.add(totalPages - 1);
-      pages.add(totalPages - 2);
-    }
-
-    return Array.from(pages).sort((first, second) => first - second);
-  });
   protected readonly visibleAreas = computed(() => {
     const page = Math.min(this.currentPage(), this.totalPages());
     const startIndex = (page - 1) * this.pageSize();
 
     return this.filteredAreas().slice(startIndex, startIndex + this.pageSize());
   });
-  protected readonly firstVisibleItem = computed(() =>
-    this.filteredAreas().length === 0
-      ? 0
-      : (Math.min(this.currentPage(), this.totalPages()) - 1) * this.pageSize() + 1,
-  );
-  protected readonly lastVisibleItem = computed(() =>
-    Math.min(
-      this.firstVisibleItem() + this.pageSize() - 1,
-      this.filteredAreas().length,
-    ),
-  );
-
   protected newArea: NewAreaModel = this.createEmptyArea();
 
   ngOnInit(): void {
@@ -113,6 +81,7 @@ export class Area implements OnInit {
   }
 
   protected editArea(area: AreaModel): void {
+    this.closeActionsMenu();
     this.editingAreaId.set(area.areaID);
     this.newArea = {
       name: area.name,
@@ -120,6 +89,58 @@ export class Area implements OnInit {
       active: area.active,
     };
     this.isModalOpen.set(true);
+  }
+
+  protected toggleActionsMenu(areaID: number, event: Event): void {
+    event.stopPropagation();
+    this.openActionsMenuAreaId.update((openAreaID) =>
+      openAreaID === areaID ? null : areaID,
+    );
+  }
+
+  protected closeActionsMenu(): void {
+    this.openActionsMenuAreaId.set(null);
+  }
+
+  protected openDeleteConfirmation(area: AreaModel): void {
+    this.closeActionsMenu();
+    this.areaToDelete.set(area);
+  }
+
+  protected closeDeleteConfirmation(): void {
+    if (!this.isDeleting()) {
+      this.areaToDelete.set(null);
+    }
+  }
+
+  protected deleteArea(): void {
+    const area = this.areaToDelete();
+    if (!area || this.isDeleting()) {
+      return;
+    }
+
+    this.isDeleting.set(true);
+    this.errorMessage.set('');
+    this.areaService.delete(area.areaID).subscribe({
+      next: () => {
+        this.areas.update((areas) =>
+          areas.filter((currentArea) => currentArea.areaID !== area.areaID),
+        );
+        this.isDeleting.set(false);
+        this.areaToDelete.set(null);
+        this.toastMessage.set({
+          title: 'Área eliminada',
+          message: `El área “${area.name}” se eliminó correctamente.`,
+        });
+        this.goToPage(this.currentPage());
+      },
+      error: (error: unknown) => {
+        this.errorMessage.set(
+          `No se pudo eliminar el área: ${getOperationErrorMessage(error, 'Intenta nuevamente.')}`,
+        );
+        this.isDeleting.set(false);
+      },
+    });
   }
 
   protected closeModal(): void {
@@ -137,8 +158,8 @@ export class Area implements OnInit {
     this.currentPage.set(1);
   }
 
-  protected updatePageSize(event: Event): void {
-    this.pageSize.set(Number((event.target as HTMLSelectElement).value));
+  protected updatePageSize(pageSize: number): void {
+    this.pageSize.set(pageSize);
     this.currentPage.set(1);
   }
 
@@ -187,6 +208,10 @@ export class Area implements OnInit {
         this.isSaving.set(false);
         // Cierra el formulario después de guardar correctamente.
         this.closeModal();
+        this.toastMessage.set({
+          title: 'Área creada',
+          message: `El área “${createdArea.name}” se creó correctamente.`,
+        });
       },
       // Ejecuta este bloque si la API no pudo crear el área.
       error: (error: unknown) => {
@@ -235,6 +260,10 @@ export class Area implements OnInit {
         this.isSaving.set(false);
         // Cierra el formulario después de actualizar correctamente.
         this.closeModal();
+        this.toastMessage.set({
+          title: 'Área actualizada',
+          message: `El área “${updatedArea.name}” se actualizó correctamente.`,
+        });
       },
       // Ejecuta este bloque si la API no pudo actualizar el área.
       error: (error: unknown) => {
@@ -246,6 +275,10 @@ export class Area implements OnInit {
         this.isSaving.set(false);
       },
     });
+  }
+
+  protected dismissToast(): void {
+    this.toastMessage.set(null);
   }
 
   private createEmptyArea(): NewAreaModel {
