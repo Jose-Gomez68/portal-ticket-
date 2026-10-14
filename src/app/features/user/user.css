@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+.user-view {
+  min-height: calc(100vh - 3.5rem);
+}
+
+@supports (min-height: 100dvh) {
+  .user-view {
+    min-height: calc(100dvh - 3.5rem);
+  }
+}
+
+.user-loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: user-spinner-rotation 0.7s linear infinite;
+}
+
+.user-field {
+  width: 100%;
+  min-height: 2.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+  padding: 0.5rem 0.75rem;
+  color: var(--color-neutral);
+  font-size: var(--text-body-sm);
+  line-height: var(--text-body-sm--line-height);
+}
+
+.user-field:focus {
+  border-color: var(--color-focus);
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.user-field::placeholder {
+  color: var(--color-text-muted);
+}
+
+@keyframes user-spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
