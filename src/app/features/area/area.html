@@ -1,5 +1,11 @@
 <main class="area-view bg-surface-container-low p-4 text-neutral sm:p-6 lg:p-8">
   <div class="mx-auto max-w-[1440px] space-y-6">
+    @if (errorMessage()) {
+      <p class="rounded-control border border-status-closed-border bg-status-closed-bg p-3 text-body-sm text-status-closed" role="alert">
+        {{ errorMessage() }}
+      </p>
+    }
+
     <section class="space-y-4">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -94,13 +100,14 @@
               <th class="px-4 py-3 font-semibold" scope="col">Nombre del área</th>
               <th class="px-4 py-3 font-semibold" scope="col">Descripción</th>
               <!-- <th class="px-4 py-3 font-semibold" scope="col">Proyecto asociado</th> -->
-              <th class="px-4 py-3 text-center font-semibold" scope="col">Tickets</th>
+              <!-- <th class="px-4 py-3 text-center font-semibold" scope="col">Tickets</th> -->
               <th class="px-4 py-3 font-semibold" scope="col">Estado</th>
               <th class="px-4 py-3 font-semibold" scope="col">Fecha de creación</th>
+              <th class="px-4 py-3 text-right font-semibold" scope="col">Acciones</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
-            @for (area of visibleAreas(); track area.id) {
+            @for (area of visibleAreas(); track area.areaID) {
               <tr class="transition-colors hover:bg-surface-muted">
                 <td class="px-4 py-3.5">
                   <div class="flex items-center gap-3">
@@ -110,19 +117,19 @@
                     <span class="font-semibold text-neutral">{{ area.name }}</span>
                   </div>
                 </td>
-                <td class="max-w-sm truncate px-4 py-3.5 text-body-sm text-text-secondary" [title]="area.description">
-                  {{ area.description || 'Sin descripción' }}
+                <td class="max-w-sm truncate px-4 py-3.5 text-body-sm text-text-secondary" [title]="area.descrip">
+                  {{ area.descrip || 'Sin descripción' }}
                 </td>
                 <!-- <td class="px-4 py-3.5">
                   <span class="inline-flex rounded-full border border-border bg-surface-muted px-2.5 py-1 text-label-sm text-text-secondary">
                     {{ area.project }}
                   </span>
                 </td> -->
-                <td class="px-4 py-3.5 text-center">
+                <!-- <td class="px-4 py-3.5 text-center">
                   <span class="inline-flex rounded-control bg-primary/10 px-2 py-1 text-label-sm font-semibold text-primary">
                     {{ area.ticketCount }}
                   </span>
-                </td>
+                </td> -->
                 <td class="px-4 py-3.5">
                   @if (area.active) {
                     <span class="inline-flex items-center gap-1.5 rounded-full border border-status-closed-border bg-status-closed-bg px-2.5 py-1 text-label-sm text-status-closed">
@@ -137,12 +144,21 @@
                   }
                 </td>
                 <td class="whitespace-nowrap px-4 py-3.5 text-body-sm text-text-muted">
-                  {{ area.createdAt }}
+                  {{ area.createdDate | date: 'dd/MM/yyyy' }}
+                </td>
+                <td class="px-4 py-3.5 text-right">
+                  <button
+                    class="btn btn-secondary btn-compact"
+                    type="button"
+                    (click)="editArea(area)"
+                  >
+                    Editar
+                  </button>
                 </td>
               </tr>
             } @empty {
               <tr>
-                <td class="px-4 py-12 text-center text-body-sm text-text-muted" colspan="6">
+                <td class="px-4 py-12 text-center text-body-sm text-text-muted" colspan="5">
                   No se encontraron áreas con esos filtros.
                 </td>
               </tr>
@@ -239,7 +255,9 @@
       >
         <header class="flex items-start justify-between border-b border-border px-6 py-5">
           <div>
-            <h2 class="text-headline-sm font-semibold" id="area-modal-title">Nueva área</h2>
+            <h2 class="text-headline-sm font-semibold" id="area-modal-title">
+              {{ editingAreaId() === null ? 'Nueva área' : 'Editar área' }}
+            </h2>
             <p class="mt-1 text-body-sm text-text-muted">
               Registra un área para organizar los tickets de soporte.
             </p>
@@ -270,7 +288,7 @@
             >
           </div>
 
-          <div class="space-y-1.5">
+         <!--  <div class="space-y-1.5">
             <label class="block text-label-md font-medium" for="area-project">
               Proyecto asignado <span class="text-destructive">*</span>
             </label>
@@ -286,18 +304,18 @@
               <option value="Prenómina">Prenómina</option>
               <option value="Soporte Técnico">Soporte Técnico</option>
             </select>
-          </div>
+          </div> -->
 
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="block text-label-md font-medium" for="area-description">Descripción</label>
-              <span class="font-mono text-code-sm text-text-muted">{{ newArea.description.length }} / 200</span>
+              <span class="font-mono text-code-sm text-text-muted">{{ newArea.descrip.length }} / 200</span>
             </div>
             <textarea
               id="area-description"
               class="w-full resize-none rounded-control border border-border bg-surface p-2.5 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
               name="areaDescription"
-              [(ngModel)]="newArea.description"
+              [(ngModel)]="newArea.descrip"
               maxlength="200"
               placeholder="Describe el alcance de esta área..."
               rows="3"
@@ -321,8 +339,18 @@
             <button class="btn btn-secondary btn-compact" type="button" (click)="closeModal()">
               Cancelar
             </button>
-            <button class="btn btn-primary btn-compact" type="submit">
-              Guardar área
+            <button
+              class="btn btn-primary btn-compact inline-flex items-center gap-2"
+              type="submit"
+              [disabled]="isSaving()"
+              [attr.aria-busy]="isSaving()"
+            >
+              @if (isSaving()) {
+                <span aria-hidden="true" class="area-loading-spinner"></span>
+                <span>{{ editingAreaId() === null ? 'Guardando...' : 'Actualizando...' }}</span>
+              } @else {
+                <span>{{ editingAreaId() === null ? 'Guardar área' : 'Actualizar área' }}</span>
+              }
             </button>
           </footer>
         </form>

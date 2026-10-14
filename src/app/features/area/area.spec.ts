@@ -1,13 +1,33 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { Area } from './area';
+import { AreaService } from './service/area.service';
+
+const createArea = (areaID: number, name: string) => ({
+  areaID,
+  name,
+  descrip: 'Descripción de prueba',
+  active: true,
+  createdDate: '2026-10-13T00:00:00Z',
+  createBy: null,
+  updatedDate: null,
+  updatedBy: null,
+});
 
 describe('Area', () => {
   let component: Area;
   let fixture: ComponentFixture<Area>;
+  const areaService = {
+    getAll: vi.fn(() => of([createArea(1, 'Área inicial')])),
+    create: vi.fn((area) => of({ ...createArea(2, area.name), ...area })),
+    update: vi.fn((area) => of({ ...createArea(area.areaID, area.name), ...area })),
+  };
 
   beforeEach(async () => {
+    vi.clearAllMocks();
     await TestBed.configureTestingModule({
       imports: [Area],
+      providers: [{ provide: AreaService, useValue: areaService }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(Area);
@@ -29,23 +49,46 @@ describe('Area', () => {
     component['openModal']();
     component['newArea'] = {
       name: 'Aplicaciones móviles',
-      description: 'Soporte para la app',
-      project: 'Visión',
+      descrip: 'Soporte para la app',
       active: true,
     };
 
     component['saveArea']();
 
+    expect(areaService.create).toHaveBeenCalledWith({
+      name: 'Aplicaciones móviles',
+      descrip: 'Soporte para la app',
+      active: true,
+    });
     expect(component['areas']()[0].name).toBe('Aplicaciones móviles');
     expect(component['isModalOpen']()).toBe(false);
   });
 
+  it('updates an area without sending generated dates or audit fields', () => {
+    const firstArea = createArea(1, 'Área inicial');
+    component['areas'].set([firstArea]);
+    component['editArea'](firstArea);
+    component['newArea'] = {
+      name: 'Área editada',
+      descrip: 'Descripción actualizada',
+      active: false,
+    };
+    component['saveArea']();
+
+    expect(areaService.update).toHaveBeenCalledWith({
+      areaID: 1,
+      name: 'Área editada',
+      descrip: 'Descripción actualizada',
+      active: false,
+    });
+    expect(component['areas']()[0].name).toBe('Área editada');
+    expect(component['isModalOpen']()).toBe(false);
+  });
+
   it('paginates the filtered areas and reports the visible range', () => {
-    const firstArea = component['areas']()[0];
     component['areas'].set(
       Array.from({ length: 15 }, (_, index) => ({
-        ...firstArea,
-        id: index + 8,
+        ...createArea(index + 8, `Área ${index + 8}`),
         name: `Área ${index + 8}`,
       })),
     );
@@ -65,7 +108,7 @@ describe('Area', () => {
   it('resets to the first page when filters change', () => {
     const uniqueName = 'Área de búsqueda única';
     component['areas'].update((areas) => [
-      { ...areas[0], id: 100, name: uniqueName, description: 'Texto de prueba' },
+      { ...areas[0], areaID: 100, name: uniqueName, descrip: 'Texto de prueba' },
       ...areas,
     ]);
     component['currentPage'].set(2);

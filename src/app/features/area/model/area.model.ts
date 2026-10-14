@@ -1,16 +1,13 @@
 export interface AreaModel {
-  id: number;
+  areaID: number;
   name: string;
-  description: string;
-  project: string;
-  ticketCount: number;
+  descrip: string;
   active: boolean;
-  createdAt: string;
+  createdDate: string | null;
+  createBy: string | null;
+  updatedDate: string | null;
+  updatedBy: string | null;
 }
 
-export interface NewAreaModel {
-  name: string;
-  description: string;
-  project: string;
-  active: boolean;
-}
+export type NewAreaModel = Pick<AreaModel, 'name' | 'descrip' | 'active'>;
+export type UpdateAreaModel = Pick<AreaModel, 'areaID' | 'name' | 'descrip' | 'active'>;

@@ -7,3 +7,18 @@
     min-height: calc(100dvh - 3.5rem);
   }
 }
+
+.area-loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: area-spinner-rotation 0.7s linear infinite;
+}
+
+@keyframes area-spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
