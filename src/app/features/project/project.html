@@ -1,0 +1,603 @@
+<main
+  class="min-h-screen bg-surface-container-low px-4 py-6 text-neutral sm:px-6 sm:py-8 lg:px-8"
+  (click)="closeActionsMenu()"
+>
+  <div class="mx-auto flex max-w-[1440px] flex-col gap-6">
+    @if (errorMessage()) {
+      <app-error-alert [message]="errorMessage()" />
+    }
+
+    <section>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-headline-lg font-semibold tracking-tight">Proyectos</h1>
+            <span class="rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-label-sm text-primary">
+              Gestión activa
+            </span>
+          </div>
+          <p class="text-body-md text-text-secondary">
+            Administra los proyectos y sistemas disponibles para registrar incidencias.
+          </p>
+        </div>
+        <button class="btn btn-primary w-full sm:w-auto" type="button" (click)="openCreateModal()">
+          <span aria-hidden="true" class="text-lg leading-none">+</span>
+          Nuevo proyecto
+        </button>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Resumen de proyectos">
+      <article class="flex items-center gap-4 rounded-panel border border-border bg-surface p-4 shadow-panel">
+        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-panel bg-primary/10 text-primary" aria-hidden="true">
+          <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M3.75 7.5A1.75 1.75 0 0 1 5.5 5.75h4l2 2h7A1.75 1.75 0 0 1 20.25 9.5v8A1.75 1.75 0 0 1 18.5 19.25h-13a1.75 1.75 0 0 1-1.75-1.75z" />
+          </svg>
+        </span>
+        <div>
+          <p class="text-label-sm uppercase text-text-muted">Proyectos registrados</p>
+          <p class="mt-1 text-headline-md font-semibold">{{ totalCount() }}</p>
+          <p class="text-body-sm text-text-muted">En el catálogo</p>
+        </div>
+      </article>
+
+      <article class="flex items-center gap-4 rounded-panel border border-border bg-surface p-4 shadow-panel">
+        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-panel bg-status-closed-bg text-status-closed" aria-hidden="true">
+          <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="m5 12.5 4.25 4.25L19 7" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+        </span>
+        <div>
+          <p class="text-label-sm uppercase text-text-muted">Proyectos activos</p>
+          <p class="mt-1 text-headline-md font-semibold">{{ activeCount() }}</p>
+          <p class="text-body-sm text-text-muted">Disponibles para incidencias</p>
+        </div>
+      </article>
+
+      <article class="flex items-center gap-4 rounded-panel border border-border bg-surface p-4 shadow-panel">
+        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-panel bg-surface-muted text-text-secondary" aria-hidden="true">
+          <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8.5 8.5 15.5 15.5m0-7-7 7" />
+          </svg>
+        </span>
+        <div>
+          <p class="text-label-sm uppercase text-text-muted">Proyectos inactivos</p>
+          <p class="mt-1 text-headline-md font-semibold">{{ inactiveCount() }}</p>
+          <p class="text-body-sm text-text-muted">No disponibles para incidencias</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-panel border border-border bg-surface p-3 shadow-panel md:flex-row md:items-center md:justify-between">
+      <div class="flex w-full flex-col gap-3 sm:flex-row md:max-w-3xl">
+        <label class="relative block flex-1">
+          <span class="sr-only">Buscar proyectos</span>
+          <svg class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="10.8" cy="10.8" r="6.8" />
+            <path d="m16 16 4.5 4.5" />
+          </svg>
+          <input
+            class="h-10 w-full rounded-control border border-border bg-surface pl-9 pr-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+            type="search"
+            placeholder="Buscar proyecto..."
+            [value]="searchTerm()"
+            (input)="updateSearch($event)"
+          >
+        </label>
+        <label>
+          <span class="sr-only">Filtrar por estado del proyecto</span>
+          <select
+            class="h-10 w-full cursor-pointer rounded-control border border-border bg-surface px-3 text-body-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 sm:w-56"
+            [value]="selectedStatus()"
+            (change)="updateStatusFilter($event)"
+          >
+            <option value="">Todos los estados</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Inactivos</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="flex items-center gap-1 self-end rounded-control border border-border p-1 md:self-auto" aria-label="Modo de visualización">
+        <button
+          class="flex items-center gap-1.5 rounded-control px-3 py-1.5 text-label-sm transition-colors"
+          [class.bg-primary]="viewMode() === 'cards'"
+          [class.font-semibold]="viewMode() === 'cards'"
+          [class.text-white]="viewMode() === 'cards'"
+          [class.text-text-secondary]="viewMode() !== 'cards'"
+          [class.hover:bg-surface-muted]="viewMode() !== 'cards'"
+          [attr.aria-pressed]="viewMode() === 'cards'"
+          title="Vista de tarjetas"
+          type="button"
+          (click)="setViewMode('cards')"
+        >
+          <span aria-hidden="true">▦</span>
+          Tarjetas
+        </button>
+        <button
+          class="flex items-center gap-1.5 rounded-control px-3 py-1.5 text-label-sm transition-colors"
+          [class.bg-primary]="viewMode() === 'table'"
+          [class.font-semibold]="viewMode() === 'table'"
+          [class.text-white]="viewMode() === 'table'"
+          [class.text-text-secondary]="viewMode() !== 'table'"
+          [class.hover:bg-surface-muted]="viewMode() !== 'table'"
+          [attr.aria-pressed]="viewMode() === 'table'"
+          title="Vista de tabla"
+          type="button"
+          (click)="setViewMode('table')"
+        >
+          <span aria-hidden="true">☷</span>
+          Tabla
+        </button>
+      </div>
+    </section>
+
+    @if (isLoading()) {
+      <section class="rounded-panel border border-border bg-surface px-6 py-16 text-center shadow-panel" aria-live="polite">
+        <span class="project-loading-spinner mx-auto block text-primary" aria-hidden="true"></span>
+        <p class="mt-3 text-body-sm text-text-muted">Cargando proyectos...</p>
+      </section>
+    } @else if (filteredProjects().length === 0) {
+      <section class="rounded-panel border border-border bg-surface px-6 py-16 text-center shadow-panel">
+        <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted text-text-muted" aria-hidden="true">⌕</span>
+        <h2 class="mt-3 text-headline-sm font-semibold">No se encontraron proyectos</h2>
+        <p class="mt-1 text-body-sm text-text-muted">
+          Ajusta la búsqueda o el filtro para ver otros proyectos.
+        </p>
+      </section>
+    } @else if (viewMode() === 'cards') {
+      <section class="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Proyectos">
+        @for (project of visibleProjects(); track project.projectID) {
+          <article class="flex flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-panel transition-shadow hover:shadow-popover">
+            <div class="flex flex-1 flex-col gap-4 p-5">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-3">
+                  <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-panel bg-primary/10 text-primary" aria-hidden="true">
+                    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3.75 7.5A1.75 1.75 0 0 1 5.5 5.75h4l2 2h7A1.75 1.75 0 0 1 20.25 9.5v8A1.75 1.75 0 0 1 18.5 19.25h-13a1.75 1.75 0 0 1-1.75-1.75z" />
+                    </svg>
+                  </span>
+                  <div class="min-w-0">
+                    <h2 class="truncate text-headline-sm font-semibold" [title]="project.name">{{ project.name }}</h2>
+                    <span class="font-mono text-code-sm text-text-muted">PRJ-{{ project.projectID }}</span>
+                  </div>
+                </div>
+                <div class="flex shrink-0 items-center gap-1" (click)="$event.stopPropagation()" (keydown.escape)="closeActionsMenu()">
+                  @if (project.active) {
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-status-closed-border bg-status-closed-bg px-2.5 py-1 text-label-sm text-status-closed">
+                      <span class="h-1.5 w-1.5 rounded-full bg-status-closed"></span>
+                      Activo
+                    </span>
+                  } @else {
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-label-sm text-text-muted">
+                      <span class="h-1.5 w-1.5 rounded-full bg-text-muted"></span>
+                      Inactivo
+                    </span>
+                  }
+                  <div class="relative">
+                    <button
+                      [attr.aria-expanded]="openActionsMenuProjectID() === project.projectID"
+                      [attr.aria-label]="'Acciones para ' + project.name"
+                      aria-haspopup="menu"
+                      class="flex h-8 w-8 items-center justify-center rounded-control text-lg leading-none text-text-secondary transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-focus/30"
+                      type="button"
+                      (click)="toggleActionsMenu(project.projectID, $event)"
+                    >
+                      <span aria-hidden="true">⋮</span>
+                    </button>
+                    @if (openActionsMenuProjectID() === project.projectID) {
+                      <div
+                        class="absolute right-0 z-20 mt-1 w-36 rounded-control border border-border bg-surface py-1 text-left shadow-panel"
+                        role="menu"
+                      >
+                        <button
+                          class="block w-full px-3 py-2 text-left text-body-sm text-neutral transition-colors hover:bg-surface-muted"
+                          role="menuitem"
+                          type="button"
+                          (click)="editProject(project)"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          class="block w-full px-3 py-2 text-left text-body-sm text-destructive transition-colors hover:bg-surface-muted"
+                          role="menuitem"
+                          type="button"
+                          (click)="openDeleteConfirmation(project)"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <p class="min-h-14 text-body-sm leading-relaxed text-text-secondary">
+                {{ project.description || 'Sin descripción disponible.' }}
+              </p>
+
+              <div class="mt-auto space-y-2 border-t border-border pt-3">
+                <div class="flex items-center gap-2 text-body-sm text-text-secondary">
+                  <svg class="h-4 w-4 shrink-0 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <rect x="3.75" y="5.25" width="16.5" height="15" rx="2" />
+                    <path d="M7.5 3.75v3m9-3v3M3.75 9.75h16.5" />
+                  </svg>
+                  <span>
+                    Creado:
+                    @if (project.createdDate) {
+                      {{ project.createdDate | date: 'dd MMM yyyy' }}
+                    } @else {
+                      Sin fecha
+                    }
+                  </span>
+                </div>
+                @if (project.createdBy) {
+                  <p class="text-label-sm text-text-muted">Creado por {{ project.createdBy }}</p>
+                }
+              </div>
+            </div>
+          </article>
+        }
+      </section>
+      @if (filteredProjects().length > 0) {
+        <app-pagination
+          [totalItems]="filteredProjects().length"
+          [currentPage]="currentPage()"
+          [pageSize]="pageSize()"
+          itemLabel="proyectos"
+          navigationLabel="Paginación de proyectos"
+          (pageChange)="goToPage($event)"
+          (pageSizeChange)="updatePageSize($event)"
+        />
+      }
+    } @else {
+      <section
+        class="overflow-hidden rounded-panel border border-border bg-surface shadow-panel"
+        aria-label="Proyectos"
+      >
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[720px] border-collapse text-left">
+            <thead>
+              <tr class="border-b border-border bg-surface-muted text-label-sm uppercase text-text-muted">
+                <th class="px-4 py-3 font-semibold" scope="col">Proyecto</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Descripción</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Estado</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Fecha de creación</th>
+                <th class="px-4 py-3 text-right font-semibold" scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              @for (project of visibleProjects(); track project.projectID) {
+                <tr class="transition-colors hover:bg-surface-muted">
+                  <td class="px-4 py-3.5">
+                    <span class="block font-semibold">{{ project.name }}</span>
+                    <span class="font-mono text-code-sm text-text-muted">PRJ-{{ project.projectID }}</span>
+                  </td>
+                  <td class="max-w-md truncate px-4 py-3.5 text-body-sm text-text-secondary" [title]="project.description">
+                    {{ project.description || 'Sin descripción' }}
+                  </td>
+                  <td class="px-4 py-3.5">
+                    @if (project.active) {
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-status-closed-border bg-status-closed-bg px-2.5 py-1 text-label-sm text-status-closed">Activo</span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-label-sm text-text-muted">Inactivo</span>
+                    }
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3.5 text-body-sm text-text-muted">
+                    {{ project.createdDate ? (project.createdDate | date: 'dd/MM/yyyy') : 'Sin fecha' }}
+                  </td>
+                  <td class="px-4 py-3.5 text-right">
+                    <div
+                      class="relative inline-block text-left"
+                      (click)="$event.stopPropagation()"
+                      (keydown.escape)="closeActionsMenu()"
+                    >
+                      <button
+                        [attr.aria-expanded]="openActionsMenuProjectID() === project.projectID"
+                        [attr.aria-label]="'Acciones para ' + project.name"
+                        aria-haspopup="menu"
+                        class="flex h-9 w-9 items-center justify-center rounded-control border border-border text-lg leading-none text-text-secondary transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-focus/30"
+                        type="button"
+                        (click)="toggleActionsMenu(project.projectID, $event)"
+                      >
+                        <span aria-hidden="true">⋮</span>
+                      </button>
+                      @if (openActionsMenuProjectID() === project.projectID) {
+                        <div
+                          class="absolute right-0 z-20 mt-1 w-36 rounded-control border border-border bg-surface py-1 text-left shadow-panel"
+                          role="menu"
+                        >
+                          <button
+                            class="block w-full px-3 py-2 text-left text-body-sm text-neutral transition-colors hover:bg-surface-muted"
+                            role="menuitem"
+                            type="button"
+                            (click)="editProject(project)"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            class="block w-full px-3 py-2 text-left text-body-sm text-destructive transition-colors hover:bg-surface-muted"
+                            role="menuitem"
+                            type="button"
+                            (click)="openDeleteConfirmation(project)"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (filteredProjects().length > 0) {
+          <app-pagination
+            [totalItems]="filteredProjects().length"
+            [currentPage]="currentPage()"
+            [pageSize]="pageSize()"
+            itemLabel="proyectos"
+            navigationLabel="Paginación de proyectos"
+            [embedded]="true"
+            (pageChange)="goToPage($event)"
+            (pageSizeChange)="updatePageSize($event)"
+          />
+        }
+      </section>
+    }
+
+  </div>
+
+  @if (isModalOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-neutral/45 p-4 backdrop-blur-[2px] sm:p-6"
+      role="presentation"
+      (click)="closeCreateModal()"
+      (keydown.escape)="closeCreateModal()"
+    >
+      <section
+        aria-labelledby="project-modal-title"
+        aria-modal="true"
+        class="my-auto flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-modal"
+        role="dialog"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="flex items-start justify-between gap-4 border-b border-border bg-surface-muted/70 p-5 sm:p-6">
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary" aria-hidden="true">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3.75 7.5A1.75 1.75 0 0 1 5.5 5.75h4l2 2h7A1.75 1.75 0 0 1 20.25 9.5v8A1.75 1.75 0 0 1 18.5 19.25h-13a1.75 1.75 0 0 1-1.75-1.75z" />
+                <path d="M12 11v5m-2.5-2.5h5" />
+              </svg>
+            </span>
+            <div>
+              <h2 class="text-headline-md font-semibold tracking-tight" id="project-modal-title">
+                {{ editingProjectID() === null ? 'Nuevo proyecto' : 'Editar proyecto' }}
+              </h2>
+              <p class="mt-0.5 text-body-sm text-text-secondary">
+                {{ editingProjectID() === null
+                  ? 'Registra un nuevo sistema o plataforma para gestionar incidencias.'
+                  : 'Actualiza la información del proyecto.' }}
+              </p>
+            </div>
+          </div>
+          <button
+            aria-label="Cerrar modal"
+            class="rounded-control p-1.5 text-text-muted transition-colors hover:bg-surface-muted hover:text-neutral"
+            type="button"
+            [disabled]="isSaving()"
+            (click)="closeCreateModal()"
+          >
+            <span aria-hidden="true" class="text-xl">×</span>
+          </button>
+        </header>
+
+        <form class="flex flex-col gap-5 overflow-y-auto p-5 sm:p-6" (ngSubmit)="saveProject()">
+          @if (errorMessage()) {
+            <app-error-alert [message]="errorMessage()" />
+          }
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="space-y-1.5 sm:col-span-2">
+              <label class="block text-label-md font-medium" for="project-name">
+                Nombre del proyecto <span class="text-destructive">*</span>
+              </label>
+              <input
+                id="project-name"
+                class="h-10 w-full rounded-control border border-border bg-surface px-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+                name="projectName"
+                [(ngModel)]="newProject.name"
+                placeholder="Ej. ERP Financiero o Portal Clientes"
+                required
+                maxlength="100"
+              >
+            </div>
+            <div class="space-y-1.5">
+              <span class="block text-label-md font-medium">Estado</span>
+              <span class="flex h-10 items-center gap-2 rounded-control border border-border bg-surface px-3 text-body-sm text-text-secondary">
+                <span class="h-2 w-2 rounded-full" [class.bg-status-closed]="newProject.active" [class.bg-text-muted]="!newProject.active"></span>
+                {{ newProject.active ? 'Activo' : 'Inactivo' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-label-md font-medium" for="project-description">
+                Descripción <span class="text-destructive">*</span>
+              </label>
+              <span class="font-mono text-code-sm text-text-muted">{{ newProject.description.length }} / 300</span>
+            </div>
+            <textarea
+              id="project-description"
+              class="w-full resize-none rounded-control border border-border bg-surface p-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              name="projectDescription"
+              [(ngModel)]="newProject.description"
+              maxlength="300"
+              placeholder="Detalla el alcance y propósito del proyecto..."
+              required
+              rows="3"
+            ></textarea>
+          </div>
+
+          @if (editingProjectID() === null) {
+            <fieldset class="space-y-2">
+              <legend class="text-label-md font-medium">Estado del proyecto</legend>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label
+                  class="flex cursor-pointer items-start gap-3 rounded-panel border p-3 transition-colors"
+                  [class.border-primary]="newProject.active"
+                  [class.bg-primary/5]="newProject.active"
+                  [class.border-border]="!newProject.active"
+                >
+                  <input
+                    class="mt-0.5 h-4 w-4 accent-primary"
+                    name="projectStatus"
+                    type="radio"
+                    [value]="true"
+                    [(ngModel)]="newProject.active"
+                  >
+                  <span>
+                    <span class="block text-label-md font-semibold">Activo</span>
+                    <span class="mt-0.5 block text-body-sm text-text-muted">
+                      Disponible para asociar categorías y registrar tickets.
+                    </span>
+                  </span>
+                </label>
+                <label
+                  class="flex cursor-pointer items-start gap-3 rounded-panel border p-3 transition-colors"
+                  [class.border-primary]="!newProject.active"
+                  [class.bg-primary/5]="!newProject.active"
+                  [class.border-border]="newProject.active"
+                >
+                  <input
+                    class="mt-0.5 h-4 w-4 accent-primary"
+                    name="projectStatus"
+                    type="radio"
+                    [value]="false"
+                    [(ngModel)]="newProject.active"
+                  >
+                  <span>
+                    <span class="block text-label-md font-semibold">Inactivo</span>
+                    <span class="mt-0.5 block text-body-sm text-text-muted">
+                      No estará disponible para nuevas incidencias.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+          } @else {
+            <div class="space-y-2">
+              <p class="text-label-md font-medium">Estado del proyecto</p>
+              <div class="flex items-center gap-2 rounded-panel border border-border bg-surface-muted p-3 text-body-sm text-text-secondary">
+                <span
+                  class="h-2 w-2 rounded-full"
+                  [class.bg-status-closed]="newProject.active"
+                  [class.bg-text-muted]="!newProject.active"
+                  aria-hidden="true"
+                ></span>
+                <span>
+                  Estado actual:
+                  <span class="font-semibold text-neutral">
+                    {{ newProject.active ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </span>
+              </div>
+            </div>
+          }
+
+          <footer class="flex justify-end gap-2 border-t border-border pt-4">
+            <button
+              class="btn btn-secondary btn-compact"
+              type="button"
+              [disabled]="isSaving()"
+              (click)="closeCreateModal()"
+            >
+              Cancelar
+            </button>
+            <button
+              class="btn btn-primary btn-compact inline-flex items-center gap-2"
+              type="submit"
+              [disabled]="isSaving()"
+              [attr.aria-busy]="isSaving()"
+            >
+              @if (isSaving()) {
+                <span class="project-loading-spinner" aria-hidden="true"></span>
+                <span>{{ editingProjectID() === null ? 'Guardando...' : 'Actualizando...' }}</span>
+              } @else {
+                <span aria-hidden="true">✓</span>
+                <span>{{ editingProjectID() === null ? 'Guardar proyecto' : 'Actualizar proyecto' }}</span>
+              }
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (projectToDelete(); as project) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]"
+      role="presentation"
+      (click)="closeDeleteConfirmation()"
+      (keydown.escape)="closeDeleteConfirmation()"
+    >
+      <section
+        aria-labelledby="project-delete-title"
+        aria-modal="true"
+        class="w-full max-w-md overflow-hidden rounded-panel border border-border bg-surface shadow-modal"
+        role="alertdialog"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="space-y-3 p-6">
+          <h2 class="text-headline-sm font-semibold" id="project-delete-title">Eliminar proyecto</h2>
+          <p class="text-body-sm text-text-secondary">
+            ¿Estás seguro de que deseas eliminar el proyecto
+            <span class="font-semibold text-neutral">“{{ project.name }}”</span>?
+            Esta acción no se puede deshacer.
+          </p>
+          @if (errorMessage()) {
+            <app-error-alert [message]="errorMessage()" />
+          }
+        </div>
+        <footer class="flex justify-end gap-2 border-t border-border px-6 py-4">
+          <button
+            class="btn btn-secondary btn-compact"
+            type="button"
+            [disabled]="isDeleting()"
+            (click)="closeDeleteConfirmation()"
+          >
+            Cancelar
+          </button>
+          <button
+            class="btn btn-destructive btn-compact inline-flex items-center gap-2"
+            type="button"
+            [disabled]="isDeleting()"
+            [attr.aria-busy]="isDeleting()"
+            (click)="deleteProject()"
+          >
+            @if (isDeleting()) {
+              <span class="project-loading-spinner" aria-hidden="true"></span>
+              <span>Eliminando...</span>
+            } @else {
+              <span>Eliminar proyecto</span>
+            }
+          </button>
+        </footer>
+      </section>
+    </div>
+  }
+
+  @if (toastMessage(); as toast) {
+    <div class="fixed bottom-6 right-6 z-[60]">
+      <app-feedback-toast
+        [title]="toast.title"
+        [message]="toast.message"
+        (dismissed)="dismissToast()"
+      />
+    </div>
+  }
+</main>

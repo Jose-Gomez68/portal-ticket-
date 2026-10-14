@@ -1,0 +1,25 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+@supports (min-height: 100dvh) {
+  :host {
+    min-height: 100dvh;
+  }
+}
+
+.project-loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: project-spinner-rotation 0.7s linear infinite;
+}
+
+@keyframes project-spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
