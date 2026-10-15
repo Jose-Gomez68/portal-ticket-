@@ -1,0 +1,266 @@
+<main class="status-view bg-surface-container-low p-4 text-neutral sm:p-6 lg:p-8" (click)="closeActionsMenu()">
+  <div class="mx-auto max-w-[1440px] space-y-6">
+    @if (errorMessage()) {
+      <app-error-alert [message]="errorMessage()" />
+    }
+
+    <section class="space-y-4">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 class="mt-1 text-headline-lg font-semibold tracking-tight">Estados</h1>
+          <p class="mt-1 text-body-sm text-text-muted">
+            Administra los estados disponibles para clasificar tickets.
+          </p>
+        </div>
+        <button class="btn btn-primary w-full sm:w-auto" type="button" (click)="openCreateModal()">
+          <span aria-hidden="true" class="text-lg leading-none">+</span>
+          Nuevo estado
+        </button>
+      </div>
+
+      <div class="flex flex-wrap gap-3" aria-label="Resumen de estados">
+        <div class="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 shadow-panel">
+          <span class="font-semibold">{{ totalCount() }}</span>
+          <span class="text-text-muted">Estados totales</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-lg border border-border bg-surface p-3 shadow-panel lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <label class="relative block min-w-60">
+          <span class="sr-only">Buscar estados</span>
+          <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-text-muted">⌕</span>
+          <input
+            class="h-9 w-full rounded-control border border-border bg-surface pl-9 pr-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+            type="search"
+            placeholder="Buscar estado..."
+            [value]="searchTerm()"
+            (input)="updateSearch($event)"
+          >
+        </label>
+      </div>
+      <p class="text-body-sm text-text-muted">
+        {{ filteredStatuses().length }} de {{ totalCount() }} estados
+      </p>
+    </section>
+
+    <section class="overflow-hidden rounded-lg border border-border bg-surface shadow-panel" aria-label="Listado de estados">
+      @if (isLoading()) {
+        <p class="px-4 py-12 text-center text-body-sm text-text-muted" role="status">Cargando estados...</p>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[900px] border-collapse text-left">
+            <thead>
+              <tr class="border-b border-border bg-surface-muted text-label-sm uppercase text-text-muted">
+                <th class="px-4 py-3 font-semibold" scope="col">Nombre del estado</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Descripción</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Vista previa</th>
+                <th class="px-4 py-3 text-right font-semibold" scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              @for (status of visibleStatuses(); track status.statusID) {
+                <tr class="transition-colors hover:bg-surface-muted">
+                  <td class="px-4 py-3.5">
+                    <div class="flex items-center gap-3">
+                      <span
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-control font-semibold"
+                        [style.backgroundColor]="status.backgroundColor"
+                        [style.color]="status.dotColor"
+                      >
+                        {{ status.name.charAt(0).toUpperCase() }}
+                      </span>
+                      <span class="font-semibold text-neutral">{{ status.name }}</span>
+                    </div>
+                  </td>
+                  <td class="max-w-sm truncate px-4 py-3.5 text-body-sm text-text-secondary" [title]="status.descrip">
+                    {{ status.descrip }}
+                  </td>
+                  <td class="px-4 py-3.5">
+                    <span
+                      class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-label-sm"
+                      [style.backgroundColor]="status.backgroundColor"
+                    >
+                      <span class="h-2 w-2 rounded-full" [style.backgroundColor]="status.dotColor"></span>
+                      <span [style.color]="status.dotColor">{{ status.name }}</span>
+                    </span>
+                  </td>
+                  <td class="px-4 py-3.5 text-right">
+                    <div
+                      class="relative inline-block text-left"
+                      (click)="$event.stopPropagation()"
+                      (keydown.escape)="closeActionsMenu()"
+                    >
+                      <button
+                        [attr.aria-expanded]="openActionsMenuStatusID() === status.statusID"
+                        [attr.aria-label]="'Acciones para ' + status.name"
+                        aria-haspopup="menu"
+                        class="flex h-9 w-9 items-center justify-center rounded-control border border-border text-lg leading-none text-text-secondary transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-focus/30"
+                        type="button"
+                        (click)="toggleActionsMenu(status.statusID, $event)"
+                      >
+                        <span aria-hidden="true">⋮</span>
+                      </button>
+                      @if (openActionsMenuStatusID() === status.statusID) {
+                        <div class="absolute right-0 z-20 mt-1 w-36 rounded-control border border-border bg-surface py-1 text-left shadow-panel" role="menu">
+                          <button class="block w-full px-3 py-2 text-left text-body-sm text-neutral transition-colors hover:bg-surface-muted" role="menuitem" type="button" (click)="editStatus(status)">
+                            Editar
+                          </button>
+                          <button class="block w-full px-3 py-2 text-left text-body-sm text-destructive transition-colors hover:bg-surface-muted" role="menuitem" type="button" (click)="openDeleteConfirmation(status)">
+                            Eliminar
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td class="px-4 py-12 text-center text-body-sm text-text-muted" colspan="4">
+                    No se encontraron estados con esos filtros.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination
+          [totalItems]="filteredStatuses().length"
+          [currentPage]="currentPage()"
+          [pageSize]="pageSize()"
+          itemLabel="estados"
+          navigationLabel="Paginación de estados"
+          [embedded]="true"
+          (pageChange)="goToPage($event)"
+          (pageSizeChange)="updatePageSize($event)"
+        />
+      }
+    </section>
+  </div>
+
+  @if (isModalOpen()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]" role="presentation" (click)="closeModal()" (keydown.escape)="closeModal()">
+      <section aria-labelledby="status-modal-title" aria-modal="true" class="w-full max-w-lg overflow-hidden rounded-lg border border-border bg-surface shadow-modal" role="dialog" (click)="$event.stopPropagation()">
+        <header class="flex items-start justify-between border-b border-border px-6 py-5">
+          <div>
+            <h2 class="text-headline-sm font-semibold" id="status-modal-title">
+              {{ editingStatusID() === null ? 'Nuevo estado' : 'Editar estado' }}
+            </h2>
+            <p class="mt-1 text-body-sm text-text-muted">Configura un estado para clasificar los tickets.</p>
+          </div>
+          <button aria-label="Cerrar" class="rounded-control px-2 py-1 text-xl text-text-muted transition-colors hover:bg-surface-muted hover:text-neutral" type="button" (click)="closeModal()">×</button>
+        </header>
+        <form class="space-y-4 p-6" (ngSubmit)="saveStatus()">
+          <div class="space-y-1.5">
+            <label class="block text-label-md font-medium" for="status-name">
+              Nombre del estado <span class="text-destructive">*</span>
+            </label>
+            <input
+              id="status-name"
+              class="h-9 w-full rounded-control border border-border bg-surface px-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              name="statusName"
+              [(ngModel)]="newStatus.name"
+              placeholder="Ej. En progreso"
+              required
+              maxlength="100"
+            >
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-label-md font-medium" for="status-description">
+              Descripción <span class="text-destructive">*</span>
+            </label>
+            <textarea
+              id="status-description"
+              class="w-full resize-none rounded-control border border-border bg-surface p-2.5 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              name="statusDescription"
+              [(ngModel)]="newStatus.descrip"
+              placeholder="Describe este estado..."
+              required
+              maxlength="200"
+              rows="3"
+            ></textarea>
+          </div>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label class="space-y-1.5">
+              <span class="block text-label-md font-medium">Color de fondo <span class="text-destructive">*</span></span>
+              <span class="flex items-center gap-3">
+                <input
+                  aria-label="Color de fondo"
+                  class="h-10 w-12 cursor-pointer rounded-control border border-border bg-surface p-1"
+                  name="statusBackgroundColor"
+                  type="color"
+                  [(ngModel)]="newStatus.backgroundColor"
+                >
+                <code class="text-code-sm text-text-secondary">{{ newStatus.backgroundColor }}</code>
+              </span>
+            </label>
+            <label class="space-y-1.5">
+              <span class="block text-label-md font-medium">Color del punto y texto <span class="text-destructive">*</span></span>
+              <span class="flex items-center gap-3">
+                <input
+                  aria-label="Color del punto y texto"
+                  class="h-10 w-12 cursor-pointer rounded-control border border-border bg-surface p-1"
+                  name="statusDotColor"
+                  type="color"
+                  [(ngModel)]="newStatus.dotColor"
+                >
+                <code class="text-code-sm text-text-secondary">{{ newStatus.dotColor }}</code>
+              </span>
+            </label>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-label-sm text-text-muted">Vista previa:</span>
+            <span
+              class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-label-sm"
+              [style.backgroundColor]="newStatus.backgroundColor"
+            >
+              <span class="h-2 w-2 rounded-full" [style.backgroundColor]="newStatus.dotColor"></span>
+              <span [style.color]="newStatus.dotColor">{{ newStatus.name || 'Nombre del estado' }}</span>
+            </span>
+          </div>
+          <footer class="flex justify-end gap-2 border-t border-border pt-4">
+            <button class="btn btn-secondary btn-compact" type="button" [disabled]="isSaving()" (click)="closeModal()">Cancelar</button>
+            <button class="btn btn-primary btn-compact inline-flex items-center gap-2" type="submit" [disabled]="isSaving()">
+              @if (isSaving()) {
+                <span aria-hidden="true" class="status-loading-spinner"></span>
+                <span>{{ editingStatusID() === null ? 'Guardando...' : 'Actualizando...' }}</span>
+              } @else {
+                <span>{{ editingStatusID() === null ? 'Guardar estado' : 'Actualizar estado' }}</span>
+              }
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (statusToDelete(); as status) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]" role="presentation" (click)="closeDeleteConfirmation()" (keydown.escape)="closeDeleteConfirmation()">
+      <section aria-labelledby="status-delete-title" aria-modal="true" class="w-full max-w-md overflow-hidden rounded-lg border border-border bg-surface shadow-modal" role="alertdialog" (click)="$event.stopPropagation()">
+        <div class="space-y-3 p-6">
+          <h2 class="text-headline-sm font-semibold" id="status-delete-title">Eliminar estado</h2>
+          <p class="text-body-sm text-text-secondary">
+            ¿Estás seguro de que deseas eliminar el estado <span class="font-semibold text-neutral">“{{ status.name }}”</span>?
+            Esta acción no se puede deshacer.
+          </p>
+          @if (errorMessage()) {
+            <app-error-alert [message]="errorMessage()" />
+          }
+        </div>
+        <footer class="flex justify-end gap-2 border-t border-border px-6 py-4">
+          <button class="btn btn-secondary btn-compact" type="button" [disabled]="isDeleting()" (click)="closeDeleteConfirmation()">Cancelar</button>
+          <button class="btn btn-destructive btn-compact" type="button" [disabled]="isDeleting()" [attr.aria-busy]="isDeleting()" (click)="deleteStatus()">
+            {{ isDeleting() ? 'Eliminando...' : 'Eliminar estado' }}
+          </button>
+        </footer>
+      </section>
+    </div>
+  }
+
+  @if (toastMessage(); as toast) {
+    <div class="fixed bottom-6 right-6 z-[60]">
+      <app-feedback-toast [title]="toast.title" [message]="toast.message" (dismissed)="dismissToast()" />
+    </div>
+  }
+</main>
