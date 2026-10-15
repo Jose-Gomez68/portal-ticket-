@@ -192,4 +192,22 @@ describe('Project', () => {
     expect(component['projectToDelete']()).toBeNull();
     expect(component['toastMessage']()?.title).toBe('Proyecto eliminado');
   });
+
+  it('automatically dismisses success notifications after five seconds', () => {
+    vi.useFakeTimers();
+    try {
+      component['showToast']({
+        title: 'Proyecto creado',
+        message: 'El proyecto se creó correctamente.',
+      });
+      expect(component['toastMessage']()).not.toBeNull();
+
+      vi.advanceTimersByTime(5000);
+
+      expect(component['toastMessage']()).toBeNull();
+    } finally {
+      component['dismissToast']();
+      vi.useRealTimers();
+    }
+  });
 });

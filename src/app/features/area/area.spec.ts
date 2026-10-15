@@ -101,6 +101,24 @@ describe('Area', () => {
     expect(component['toastMessage']()?.title).toBe('Área eliminada');
   });
 
+  it('automatically dismisses success notifications after five seconds', () => {
+    vi.useFakeTimers();
+    try {
+      component['showToast']({
+        title: 'Área creada',
+        message: 'El área se creó correctamente.',
+      });
+      expect(component['toastMessage']()).not.toBeNull();
+
+      vi.advanceTimersByTime(5000);
+
+      expect(component['toastMessage']()).toBeNull();
+    } finally {
+      component['dismissToast']();
+      vi.useRealTimers();
+    }
+  });
+
   it('does not delete an area when confirmation is canceled', () => {
     const area = createArea(1, 'Área inicial');
     component['areas'].set([area]);

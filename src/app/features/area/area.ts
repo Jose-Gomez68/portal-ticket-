@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { computed, Component, inject, OnInit, signal } from '@angular/core';
+import { computed, Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ErrorAlert } from '../../shared/ui/error-alert/error-alert';
 import { FeedbackToast } from '../../shared/ui/feedback-toast/feedback-toast';
@@ -13,8 +13,9 @@ import type { AreaModel, NewAreaModel, UpdateAreaModel } from './model/area.mode
   styleUrl: './area.css',
   templateUrl: './area.html',
 })
-export class Area implements OnInit {
+export class Area implements OnDestroy, OnInit {
   private readonly areaService = inject(AreaService);
+  private toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly areas = signal<AreaModel[]>([]);
   protected readonly searchTerm = signal('');
@@ -36,6 +37,10 @@ export class Area implements OnInit {
   protected readonly inactiveCount = computed(
     () => this.areas().filter((area) => !area.active).length,
   );
+
+  ngOnDestroy(): void {
+    this.clearToastTimeout();
+  }
   protected readonly filteredAreas = computed(() => {
     const query = this.searchTerm().trim().toLocaleLowerCase();
     const status = this.selectedStatus();
@@ -128,7 +133,7 @@ export class Area implements OnInit {
         );
         this.isDeleting.set(false);
         this.areaToDelete.set(null);
-        this.toastMessage.set({
+        this.showToast({
           title: 'Área eliminada',
           message: `El área “${area.name}” se eliminó correctamente.`,
         });
@@ -208,7 +213,7 @@ export class Area implements OnInit {
         this.isSaving.set(false);
         // Cierra el formulario después de guardar correctamente.
         this.closeModal();
-        this.toastMessage.set({
+        this.showToast({
           title: 'Área creada',
           message: `El área “${createdArea.name}” se creó correctamente.`,
         });
@@ -260,7 +265,7 @@ export class Area implements OnInit {
         this.isSaving.set(false);
         // Cierra el formulario después de actualizar correctamente.
         this.closeModal();
-        this.toastMessage.set({
+        this.showToast({
           title: 'Área actualizada',
           message: `El área “${updatedArea.name}” se actualizó correctamente.`,
         });
@@ -278,7 +283,21 @@ export class Area implements OnInit {
   }
 
   protected dismissToast(): void {
+    this.clearToastTimeout();
     this.toastMessage.set(null);
+  }
+
+  private showToast(toast: { title: string; message: string }): void {
+    this.clearToastTimeout();
+    this.toastMessage.set(toast);
+    this.toastTimeout = setTimeout(() => this.dismissToast(), 5000);
+  }
+
+  private clearToastTimeout(): void {
+    if (this.toastTimeout !== null) {
+      clearTimeout(this.toastTimeout);
+      this.toastTimeout = null;
+    }
   }
 
   private createEmptyArea(): NewAreaModel {

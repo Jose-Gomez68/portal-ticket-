@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ErrorAlert } from '../../shared/ui/error-alert/error-alert';
 import { FeedbackToast } from '../../shared/ui/feedback-toast/feedback-toast';
@@ -13,8 +13,9 @@ import type { NewProjectModel, ProjectModel } from './model/project.model';
   templateUrl: './project.html',
   styleUrl: './project.css',
 })
-export class Project implements OnInit {
+export class Project implements OnDestroy, OnInit {
   private readonly projectService = inject(ProjectService);
+  private toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly projects = signal<ProjectModel[]>([]);
   protected readonly searchTerm = signal('');
@@ -39,6 +40,10 @@ export class Project implements OnInit {
   protected readonly inactiveCount = computed(
     () => this.projects().filter((project) => !project.active).length,
   );
+
+  ngOnDestroy(): void {
+    this.clearToastTimeout();
+  }
   protected readonly filteredProjects = computed(() => {
     const query = this.searchTerm().trim().toLocaleLowerCase();
     const status = this.selectedStatus();
@@ -122,6 +127,7 @@ export class Project implements OnInit {
     this.newProject = this.createEmptyProject();
     this.errorMessage.set('');
     this.isModalOpen.set(true);
+    this.clearToastTimeout();
     this.toastMessage.set({
       title: 'Listo para registrar',
       message: 'Completa los campos para dar de alta el proyecto.',
@@ -145,7 +151,7 @@ export class Project implements OnInit {
       this.isModalOpen.set(false);
       this.editingProjectID.set(null);
       if (this.toastMessage()?.title === 'Listo para registrar') {
-        this.toastMessage.set(null);
+        this.dismissToast();
       }
     }
   }
@@ -186,7 +192,7 @@ export class Project implements OnInit {
         this.isSaving.set(false);
         this.isModalOpen.set(false);
         this.editingProjectID.set(null);
-        this.toastMessage.set({
+        this.showToast({
           title: editingProjectID === null ? 'Proyecto creado' : 'Proyecto actualizado',
           message: editingProjectID === null
             ? `El proyecto “${createdProject.name}” se creó correctamente.`
@@ -230,7 +236,7 @@ export class Project implements OnInit {
         this.isDeleting.set(false);
         this.projectToDelete.set(null);
         this.goToPage(this.currentPage());
-        this.toastMessage.set({
+        this.showToast({
           title: 'Proyecto eliminado',
           message: `El proyecto “${project.name}” se eliminó correctamente.`,
         });
@@ -245,7 +251,21 @@ export class Project implements OnInit {
   }
 
   protected dismissToast(): void {
+    this.clearToastTimeout();
     this.toastMessage.set(null);
+  }
+
+  private showToast(toast: { title: string; message: string }): void {
+    this.clearToastTimeout();
+    this.toastMessage.set(toast);
+    this.toastTimeout = setTimeout(() => this.dismissToast(), 5000);
+  }
+
+  private clearToastTimeout(): void {
+    if (this.toastTimeout !== null) {
+      clearTimeout(this.toastTimeout);
+      this.toastTimeout = null;
+    }
   }
 
   private createEmptyProject(): NewProjectModel {
