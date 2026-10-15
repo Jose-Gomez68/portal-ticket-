@@ -4,7 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { ErrorAlert } from '../../shared/ui/error-alert/error-alert';
 import { FeedbackToast } from '../../shared/ui/feedback-toast/feedback-toast';
 import { Pagination } from '../../shared/ui/pagination/pagination';
-import type { NewUserModel, UserModel } from './model/user.model';
+import { USER_ROLES } from './model/user.model';
+import type { NewUserModel, UpdateUserModel, UserFormModel, UserModel } from './model/user.model';
+import type { AreaModel } from '../area/model/area.model';
+import { AreaService } from '../area/service/area.service';
 import { UserService } from './service/user.service';
 
 @Component({
@@ -15,15 +18,23 @@ import { UserService } from './service/user.service';
 })
 export class User implements OnInit {
   private readonly userService = inject(UserService);
+  private readonly areaService = inject(AreaService);
 
   protected readonly users = signal<UserModel[]>([]);
+  protected readonly areas = signal<AreaModel[]>([]);
+  protected readonly activeAreas = computed(() => this.areas().filter((area) => area.active));
+  protected readonly roleOptions = USER_ROLES;
   protected readonly searchTerm = signal('');
   protected readonly selectedStatus = signal('');
   protected readonly currentPage = signal(1);
   protected readonly pageSize = signal(10);
   protected readonly isLoading = signal(false);
   protected readonly isModalOpen = signal(false);
+  protected readonly editingUserId = signal<number | null>(null);
+  protected readonly openActionsMenuUserId = signal<number | null>(null);
+  protected readonly userToDelete = signal<UserModel | null>(null);
   protected readonly isSaving = signal(false);
+  protected readonly isDeleting = signal(false);
   protected readonly errorMessage = signal('');
   protected readonly toastMessage = signal<{ title: string; message: string } | null>(null);
   protected readonly totalCount = computed(() => this.users().length);
@@ -59,12 +70,13 @@ export class User implements OnInit {
 
     return this.filteredUsers().slice(startIndex, startIndex + this.pageSize());
   });
-  protected newUser: NewUserModel = this.createEmptyUser();
+  protected newUser: UserFormModel = this.createEmptyUser();
   protected passwordConfirmation = '';
   protected passwordMismatch = false;
 
   ngOnInit(): void {
     this.loadUsers();
+    this.loadAreas();
   }
 
   protected loadUsers(): void {
@@ -83,18 +95,110 @@ export class User implements OnInit {
     });
   }
 
+  private loadAreas(): void {
+    this.areaService.getAll().subscribe({
+      next: (areas) => this.areas.set(areas),
+      error: () => this.errorMessage.set('No se pudieron cargar las áreas. Intenta nuevamente.'),
+    });
+  }
+
   protected openCreateModal(): void {
+    this.editingUserId.set(null);
     this.newUser = this.createEmptyUser();
     this.passwordConfirmation = '';
     this.passwordMismatch = false;
     this.isModalOpen.set(true);
   }
 
+  protected editUser(user: UserModel): void {
+    this.closeActionsMenu();
+    this.editingUserId.set(user.userID);
+    this.newUser = {
+      userName: user.userName,
+      name: user.name,
+      apPaterno: user.apPaterno,
+      apMaterno: user.apMaterno,
+      email: user.email,
+      password: '',
+      active: user.active,
+      role: user.role,
+      areaID: user.areaID,
+    };
+    this.passwordConfirmation = '';
+    this.passwordMismatch = false;
+    this.isModalOpen.set(true);
+  }
+
+  protected toggleActionsMenu(userID: number, event: Event): void {
+    event.stopPropagation();
+    this.openActionsMenuUserId.update((openUserID) =>
+      openUserID === userID ? null : userID,
+    );
+  }
+
+  protected closeActionsMenu(): void {
+    this.openActionsMenuUserId.set(null);
+  }
+
+  protected openDeleteConfirmation(user: UserModel): void {
+    this.closeActionsMenu();
+    this.userToDelete.set(user);
+  }
+
+  protected closeDeleteConfirmation(): void {
+    if (!this.isDeleting()) {
+      this.userToDelete.set(null);
+    }
+  }
+
+  protected deleteUser(): void {
+    const user = this.userToDelete();
+    if (!user || this.isDeleting()) {
+      return;
+    }
+
+    this.isDeleting.set(true);
+    this.errorMessage.set('');
+    this.userService.deleteUser(user.userID).subscribe({
+      next: () => {
+        this.users.update((users) =>
+          users.filter((currentUser) => currentUser.userID !== user.userID),
+        );
+        this.isDeleting.set(false);
+        this.userToDelete.set(null);
+        this.toastMessage.set({
+          title: 'Usuario eliminado',
+          message: `La cuenta de ${user.name} ${user.apPaterno} se eliminó correctamente.`,
+        });
+        this.goToPage(this.currentPage());
+      },
+      error: (error: unknown) => {
+        this.errorMessage.set(
+          `No se pudo eliminar el usuario: ${getErrorMessage(error)}`,
+        );
+        this.isDeleting.set(false);
+      },
+    });
+  }
+
   protected closeModal(): void {
     if (!this.isSaving()) {
       this.isModalOpen.set(false);
+      this.editingUserId.set(null);
       this.passwordMismatch = false;
     }
+  }
+
+  protected onRoleChange(role: UserFormModel['role']): void {
+    if (role === 'ADMIN') {
+      this.newUser.areaID = null;
+    }
+  }
+
+  protected validatePasswordMatch(): void {
+    this.passwordMismatch =
+      this.passwordConfirmation.length > 0 &&
+      this.newUser.password !== this.passwordConfirmation;
   }
 
   protected updateSearch(event: Event): void {
@@ -121,32 +225,74 @@ export class User implements OnInit {
   }
 
   protected saveUser(): void {
-    const payload: NewUserModel = {
+    const role = this.newUser.role;
+    const areaID = role === 'ADMIN' ? null : this.newUser.areaID;
+    const fields = {
       userName: this.newUser.userName.trim(),
       name: this.newUser.name.trim(),
       apPaterno: this.newUser.apPaterno.trim(),
       apMaterno: this.newUser.apMaterno.trim(),
       email: this.newUser.email.trim(),
-      password: this.newUser.password,
       active: this.newUser.active,
     };
+    const editingUserId = this.editingUserId();
+    const requiresPassword = editingUserId === null;
+    const hasPassword = this.newUser.password.length > 0;
 
-    this.passwordMismatch = payload.password !== this.passwordConfirmation;
+    this.passwordMismatch =
+      (requiresPassword || hasPassword) &&
+      this.newUser.password !== this.passwordConfirmation;
     if (
       this.isSaving() ||
-      !payload.userName ||
-      !payload.name ||
-      !payload.apPaterno ||
-      !payload.apMaterno ||
-      !payload.email ||
-      !payload.password ||
+      !fields.userName ||
+      !fields.name ||
+      !fields.apPaterno ||
+      !fields.apMaterno ||
+      !fields.email ||
+      !role ||
+      (role !== 'ADMIN' && areaID === null) ||
+      (requiresPassword && !hasPassword) ||
       this.passwordMismatch
     ) {
       return;
     }
 
+    const userFields = {
+      ...fields,
+      role,
+      areaID,
+    };
     this.isSaving.set(true);
     this.errorMessage.set('');
+    if (editingUserId !== null) {
+      const payload: UpdateUserModel = {
+        userID: editingUserId,
+        ...userFields,
+        ...(hasPassword ? { password: this.newUser.password } : {}),
+      };
+      this.userService.updateUser(payload).subscribe({
+        next: (user) => {
+          this.users.update((users) =>
+            users.map((currentUser) => currentUser.userID === user.userID ? user : currentUser),
+          );
+          this.isSaving.set(false);
+          this.closeModal();
+          this.toastMessage.set({
+            title: 'Usuario actualizado',
+            message: `La cuenta de ${user.name} ${user.apPaterno} se actualizó correctamente.`,
+          });
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(`No se pudo actualizar el usuario: ${getErrorMessage(error)}`);
+          this.isSaving.set(false);
+        },
+      });
+      return;
+    }
+    const payload: NewUserModel = {
+      ...userFields,
+      password: this.newUser.password,
+    };
     this.userService.createUser(payload).subscribe({
       next: (user) => {
         this.users.update((users) => [user, ...users]);
@@ -171,7 +317,7 @@ export class User implements OnInit {
     this.toastMessage.set(null);
   }
 
-  private createEmptyUser(): NewUserModel {
+  private createEmptyUser(): UserFormModel {
     return {
       userName: '',
       name: '',
@@ -180,6 +326,8 @@ export class User implements OnInit {
       email: '',
       password: '',
       active: true,
+      role: '',
+      areaID: null,
     };
   }
 }

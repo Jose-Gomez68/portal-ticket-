@@ -114,14 +114,17 @@
     } @else {
       <section class="overflow-hidden rounded-panel border border-border bg-surface shadow-panel" aria-label="Listado de usuarios">
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[760px] border-collapse text-left">
+          <table class="w-full min-w-[960px] border-collapse text-left">
             <thead>
               <tr class="border-b border-border bg-surface-muted text-label-sm uppercase tracking-wide text-text-muted">
                 <th class="px-4 py-3 font-semibold">Nombre completo</th>
                 <th class="px-4 py-3 font-semibold">Correo electrónico</th>
                 <th class="px-4 py-3 font-semibold">Usuario</th>
+                <th class="px-4 py-3 font-semibold">Rol</th>
+                <th class="px-4 py-3 font-semibold">Área</th>
                 <th class="px-4 py-3 font-semibold">Estado</th>
                 <th class="px-4 py-3 font-semibold">Fecha de creación</th>
+                <th class="px-4 py-3 text-right font-semibold">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border">
@@ -146,6 +149,8 @@
                       {{ user.userName }}
                     </span>
                   </td>
+                  <td class="px-4 py-3 text-body-sm text-text-secondary">{{ user.role }}</td>
+                  <td class="px-4 py-3 text-body-sm text-text-secondary">{{ user.areaName || '—' }}</td>
                   <td class="px-4 py-3">
                     <span
                       class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-label-sm"
@@ -166,6 +171,47 @@
                     } @else {
                       —
                     }
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <div
+                      class="relative inline-block text-left"
+                      (click)="$event.stopPropagation()"
+                      (keydown.escape)="closeActionsMenu()"
+                    >
+                      <button
+                        [attr.aria-expanded]="openActionsMenuUserId() === user.userID"
+                        [attr.aria-label]="'Acciones para ' + user.userName"
+                        aria-haspopup="menu"
+                        class="flex h-9 w-9 items-center justify-center rounded-control border border-border text-lg leading-none text-text-secondary transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-focus/30"
+                        type="button"
+                        (click)="toggleActionsMenu(user.userID, $event)"
+                      >
+                        <span aria-hidden="true">⋮</span>
+                      </button>
+                      @if (openActionsMenuUserId() === user.userID) {
+                        <div
+                          class="absolute right-0 z-20 mt-1 w-36 rounded-control border border-border bg-surface py-1 text-left shadow-panel"
+                          role="menu"
+                        >
+                          <button
+                            class="block w-full px-3 py-2 text-left text-body-sm text-neutral transition-colors hover:bg-surface-muted"
+                            role="menuitem"
+                            type="button"
+                            (click)="editUser(user)"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            class="block w-full px-3 py-2 text-left text-body-sm text-destructive transition-colors hover:bg-surface-muted"
+                            role="menuitem"
+                            type="button"
+                            (click)="openDeleteConfirmation(user)"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      }
+                    </div>
                   </td>
                 </tr>
               }
@@ -193,7 +239,7 @@
     (click)="closeModal()"
   >
     <section
-      aria-labelledby="new-user-title"
+      aria-labelledby="user-modal-title"
       aria-modal="true"
       class="my-auto flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-modal"
       role="dialog"
@@ -201,8 +247,12 @@
     >
       <header class="flex items-center justify-between border-b border-border bg-surface-muted/70 px-5 py-4 sm:px-6">
         <div>
-          <h2 id="new-user-title" class="text-headline-md font-semibold">Nuevo usuario</h2>
-          <p class="mt-0.5 text-body-sm text-text-muted">Completa los datos para crear una cuenta de acceso.</p>
+          <h2 id="user-modal-title" class="text-headline-md font-semibold">
+            {{ editingUserId() === null ? 'Nuevo usuario' : 'Editar usuario' }}
+          </h2>
+          <p class="mt-0.5 text-body-sm text-text-muted">
+            {{ editingUserId() === null ? 'Completa los datos para crear una cuenta de acceso.' : 'Actualiza los datos de la cuenta.' }}
+          </p>
         </div>
         <button
           aria-label="Cerrar modal"
@@ -250,16 +300,63 @@
           </label>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label class="space-y-1">
-              <span class="block text-label-sm font-semibold text-text-secondary">Contraseña <span class="text-destructive">*</span></span>
-              <input class="user-field" type="password" name="password" autocomplete="new-password" required minlength="8" [(ngModel)]="newUser.password">
+              <span class="block text-label-sm font-semibold text-text-secondary">
+                Contraseña
+                @if (editingUserId() === null) {
+                  <span class="text-destructive">*</span>
+                } @else {
+                  <span class="text-text-muted">(opcional)</span>
+                }
+              </span>
+              <input class="user-field" type="password" name="password" autocomplete="new-password" [required]="editingUserId() === null" minlength="8" [(ngModel)]="newUser.password" (ngModelChange)="validatePasswordMatch()">
             </label>
             <label class="space-y-1">
-              <span class="block text-label-sm font-semibold text-text-secondary">Confirmar contraseña <span class="text-destructive">*</span></span>
-              <input class="user-field" type="password" name="passwordConfirmation" autocomplete="new-password" required minlength="8" [(ngModel)]="passwordConfirmation" (input)="passwordMismatch = false">
+              <span class="block text-label-sm font-semibold text-text-secondary">Confirmar contraseña</span>
+              <input
+                class="user-field"
+                [class.user-field-invalid]="passwordMismatch"
+                [attr.aria-invalid]="passwordMismatch"
+                [attr.aria-describedby]="passwordMismatch ? 'password-mismatch-message' : null"
+                type="password"
+                name="passwordConfirmation"
+                autocomplete="new-password"
+                [required]="editingUserId() === null || newUser.password.length > 0"
+                minlength="8"
+                [(ngModel)]="passwordConfirmation"
+                (ngModelChange)="validatePasswordMatch()"
+              >
             </label>
           </div>
           @if (passwordMismatch) {
-            <p class="text-body-sm text-destructive" role="alert">Las contraseñas no coinciden.</p>
+            <p id="password-mismatch-message" class="text-body-sm text-destructive" role="alert">
+              Las contraseñas deben coincidir.
+            </p>
+          }
+        </section>
+
+        <section class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label class="space-y-1">
+            <span class="block text-label-sm font-semibold text-text-secondary">Rol <span class="text-destructive">*</span></span>
+            <select class="user-field" name="role" required [(ngModel)]="newUser.role" (ngModelChange)="onRoleChange($event)">
+              <option value="" disabled>Selecciona un rol</option>
+              @for (role of roleOptions; track role.value) {
+                <option [ngValue]="role.value">{{ role.label }}</option>
+              }
+            </select>
+          </label>
+          @if (newUser.role !== 'ADMIN') {
+            <label class="space-y-1">
+              <span class="block text-label-sm font-semibold text-text-secondary">Área asignada <span class="text-destructive">*</span></span>
+              <select class="user-field" name="areaID" required [(ngModel)]="newUser.areaID">
+                <option [ngValue]="null" disabled>Selecciona un área</option>
+                @for (area of activeAreas(); track area.areaID) {
+                  <option [ngValue]="area.areaID">{{ area.name }}</option>
+                }
+              </select>
+              @if (activeAreas().length === 0) {
+                <span class="block text-body-sm text-text-muted">No hay áreas activas disponibles.</span>
+              }
+            </label>
           }
         </section>
 
@@ -274,15 +371,60 @@
 
         <footer class="-mx-5 -mb-5 flex flex-col-reverse gap-2 border-t border-border bg-surface px-5 py-4 sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:px-6">
           <button class="btn btn-secondary" type="button" [disabled]="isSaving()" (click)="closeModal()">Cancelar</button>
-          <button class="btn btn-primary" type="submit" [disabled]="isSaving() || userForm.invalid">
+          <button class="btn btn-primary" type="submit" [disabled]="isSaving() || userForm.invalid || (newUser.role !== 'ADMIN' && activeAreas().length === 0)">
             @if (isSaving()) {
               Guardando...
             } @else {
-              Crear usuario
+              {{ editingUserId() === null ? 'Crear usuario' : 'Guardar cambios' }}
             }
           </button>
         </footer>
       </form>
+    </section>
+  </div>
+}
+
+@if (userToDelete(); as user) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]"
+    role="presentation"
+    (click)="closeDeleteConfirmation()"
+    (keydown.escape)="closeDeleteConfirmation()"
+  >
+    <section
+      aria-labelledby="delete-user-title"
+      aria-modal="true"
+      class="w-full max-w-md overflow-hidden rounded-xl border border-border bg-surface shadow-modal"
+      role="alertdialog"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="p-6">
+        <span class="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-status-closed-bg text-xl text-status-closed" aria-hidden="true">!</span>
+        <h2 id="delete-user-title" class="text-headline-sm font-semibold">Eliminar usuario</h2>
+        <p class="mt-2 text-body-sm text-text-secondary">
+          ¿Estás seguro de que deseas eliminar la cuenta de
+          <span class="font-semibold text-neutral">{{ user.name }} {{ user.apPaterno }}</span>?
+          Esta acción no se puede deshacer.
+        </p>
+      </div>
+      <footer class="flex flex-col-reverse gap-2 border-t border-border bg-surface-muted/50 px-6 py-4 sm:flex-row sm:justify-end">
+        <button
+          class="btn btn-secondary"
+          type="button"
+          [disabled]="isDeleting()"
+          (click)="closeDeleteConfirmation()"
+        >
+          Cancelar
+        </button>
+        <button
+          class="btn btn-destructive"
+          type="button"
+          [disabled]="isDeleting()"
+          (click)="deleteUser()"
+        >
+          {{ isDeleting() ? 'Eliminando...' : 'Eliminar usuario' }}
+        </button>
+      </footer>
     </section>
   </div>
 }

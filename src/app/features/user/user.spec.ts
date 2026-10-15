@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { User } from './user';
 import { UserService } from './service/user.service';
+import { AreaService } from '../area/service/area.service';
 
 describe('User', () => {
   let fixture: ComponentFixture<User>;
@@ -22,6 +23,9 @@ describe('User', () => {
                 apMaterno: 'Example',
                 email: 'test@example.com',
                 active: true,
+                role: 'REQUESTER',
+                areaID: 1,
+                areaName: 'Soporte',
                 createBy: null,
                 createDate: null,
                 updatedBy: null,
@@ -31,6 +35,14 @@ describe('User', () => {
               },
             ]),
             createUser: () => of({}),
+            updateUser: () => of({}),
+            deleteUser: () => of(undefined),
+          },
+        },
+        {
+          provide: AreaService,
+          useValue: {
+            getAll: () => of([]),
           },
         },
       ],

@@ -33,10 +33,20 @@
   line-height: var(--text-body-sm--line-height);
 }
 
+select.user-field {
+  color-scheme: light;
+}
+
 .user-field:focus {
   border-color: var(--color-focus);
   outline: none;
   box-shadow: var(--shadow-focus);
+}
+
+.user-field-invalid,
+.user-field-invalid:focus {
+  border-color: var(--color-destructive);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-destructive) 15%, transparent);
 }
 
 .user-field::placeholder {

@@ -174,7 +174,7 @@
                           Editar
                         </button>
                         <button
-                          class="block w-full px-3 py-2 text-left text-body-sm text-status-closed transition-colors hover:bg-surface-muted"
+                          class="block w-full px-3 py-2 text-left text-body-sm text-destructive transition-colors hover:bg-surface-muted"
                           role="menuitem"
                           type="button"
                           (click)="openDeleteConfirmation(area)"
@@ -364,7 +364,7 @@
             Cancelar
           </button>
           <button
-            class="btn btn-primary btn-compact inline-flex items-center gap-2"
+            class="btn btn-destructive btn-compact inline-flex items-center gap-2"
             type="button"
             [disabled]="isDeleting()"
             [attr.aria-busy]="isDeleting()"
