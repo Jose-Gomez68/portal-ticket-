@@ -45,6 +45,20 @@ describe('Pagination', () => {
     expect(pageSizeChange).toHaveBeenCalledWith(25);
   });
 
+  it('offers 100 rows per page', () => {
+    const pageSizeSelect: HTMLSelectElement =
+      fixture.nativeElement.querySelector('select[aria-label="Filas por página"]');
+
+    expect(Array.from(pageSizeSelect.options).map((option) => Number(option.value))).toEqual([
+      5,
+      10,
+      25,
+      50,
+      70,
+      100,
+    ]);
+  });
+
   it('shows an empty range when there are no items', () => {
     component.totalItems = 0;
 

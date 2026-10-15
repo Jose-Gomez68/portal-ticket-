@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import type { Subscription } from 'rxjs';
 import { ErrorAlert } from '../../shared/ui/error-alert/error-alert';
 import { FeedbackToast } from '../../shared/ui/feedback-toast/feedback-toast';
 import { Pagination } from '../../shared/ui/pagination/pagination';
@@ -16,8 +17,10 @@ import type { NewProjectModel, ProjectModel } from './model/project.model';
 export class Project implements OnDestroy, OnInit {
   private readonly projectService = inject(ProjectService);
   private toastTimeout: ReturnType<typeof setTimeout> | null = null;
+  private projectPageRequest: Subscription | null = null;
 
   protected readonly projects = signal<ProjectModel[]>([]);
+  protected readonly totalItems = signal(0);
   protected readonly searchTerm = signal('');
   protected readonly selectedStatus = signal('active');
   protected readonly viewMode = signal<'cards' | 'table'>('cards');
@@ -33,7 +36,7 @@ export class Project implements OnDestroy, OnInit {
   protected readonly errorMessage = signal('');
   protected readonly toastMessage = signal<{ title: string; message: string } | null>(null);
   protected newProject: NewProjectModel = this.createEmptyProject();
-  protected readonly totalCount = computed(() => this.projects().length);
+  protected readonly totalCount = computed(() => this.totalItems());
   protected readonly activeCount = computed(
     () => this.projects().filter((project) => project.active).length,
   );
@@ -43,6 +46,7 @@ export class Project implements OnDestroy, OnInit {
 
   ngOnDestroy(): void {
     this.clearToastTimeout();
+    this.projectPageRequest?.unsubscribe();
   }
   protected readonly filteredProjects = computed(() => {
     const query = this.searchTerm().trim().toLocaleLowerCase();
@@ -60,50 +64,61 @@ export class Project implements OnDestroy, OnInit {
     });
   });
   protected readonly totalPages = computed(() =>
-    Math.max(1, Math.ceil(this.filteredProjects().length / this.pageSize())),
+    Math.max(1, Math.ceil(this.totalCount() / this.pageSize())),
   );
-  protected readonly visibleProjects = computed(() => {
-    const page = Math.min(this.currentPage(), this.totalPages());
-    const startIndex = (page - 1) * this.pageSize();
-
-    return this.filteredProjects().slice(startIndex, startIndex + this.pageSize());
-  });
+  protected readonly visibleProjects = computed(() => this.filteredProjects());
   ngOnInit(): void {
     this.loadProjects();
   }
 
   protected loadProjects(): void {
+    this.projectPageRequest?.unsubscribe();
     this.errorMessage.set('');
     this.isLoading.set(true);
-    this.projectService.getAllProjects().subscribe({
-      next: (projects) => {
-        this.projects.set(projects);
-        this.isLoading.set(false);
-      },
-      error: () => {
-        this.errorMessage.set('No se pudieron cargar los proyectos. Intenta nuevamente.');
-        this.isLoading.set(false);
-      },
-    });
+    this.projectPageRequest = this.projectService
+      .getAllProjects(this.currentPage() - 1, this.pageSize())
+      .subscribe({
+        next: (result) => {
+          const totalPages = Math.max(1, Math.ceil(result.totalItems / this.pageSize()));
+          if (this.currentPage() > totalPages) {
+            this.currentPage.set(totalPages);
+            this.loadProjects();
+            return;
+          }
+
+          this.projects.set(result.response);
+          this.totalItems.set(result.totalItems);
+          this.isLoading.set(false);
+        },
+        error: () => {
+          this.errorMessage.set('No se pudieron cargar los proyectos. Intenta nuevamente.');
+          this.isLoading.set(false);
+        },
+      });
   }
 
   protected updateSearch(event: Event): void {
     this.searchTerm.set((event.target as HTMLInputElement).value);
-    this.currentPage.set(1);
+    this.resetPageForLocalFilter();
   }
 
   protected updateStatusFilter(event: Event): void {
     this.selectedStatus.set((event.target as HTMLSelectElement).value);
-    this.currentPage.set(1);
+    this.resetPageForLocalFilter();
   }
 
   protected updatePageSize(pageSize: number): void {
     this.pageSize.set(pageSize);
     this.currentPage.set(1);
+    this.loadProjects();
   }
 
   protected goToPage(page: number): void {
-    this.currentPage.set(Math.max(1, Math.min(page, this.totalPages())));
+    const nextPage = Math.max(1, Math.min(page, this.totalPages()));
+    if (nextPage !== this.currentPage()) {
+      this.currentPage.set(nextPage);
+      this.loadProjects();
+    }
   }
 
   protected setViewMode(mode: 'cards' | 'table'): void {
@@ -183,15 +198,13 @@ export class Project implements OnDestroy, OnInit {
   ): void {
     request.subscribe({
       next: (createdProject) => {
-        this.projects.update((projects) => editingProjectID === null
-          ? [createdProject, ...projects]
-          : projects.map((project) =>
-            project.projectID === editingProjectID ? createdProject : project,
-          ));
-        this.currentPage.set(1);
+        if (editingProjectID === null) {
+          this.currentPage.set(1);
+        }
         this.isSaving.set(false);
         this.isModalOpen.set(false);
         this.editingProjectID.set(null);
+        this.loadProjects();
         this.showToast({
           title: editingProjectID === null ? 'Proyecto creado' : 'Proyecto actualizado',
           message: editingProjectID === null
@@ -230,12 +243,13 @@ export class Project implements OnDestroy, OnInit {
     this.errorMessage.set('');
     this.projectService.deleteProject(project.projectID).subscribe({
       next: () => {
-        this.projects.update((projects) =>
-          projects.filter((currentProject) => currentProject.projectID !== project.projectID),
-        );
+        const nextTotalItems = Math.max(0, this.totalItems() - 1);
+        this.totalItems.set(nextTotalItems);
         this.isDeleting.set(false);
         this.projectToDelete.set(null);
-        this.goToPage(this.currentPage());
+        const lastPage = Math.max(1, Math.ceil(nextTotalItems / this.pageSize()));
+        this.currentPage.set(Math.min(this.currentPage(), lastPage));
+        this.loadProjects();
         this.showToast({
           title: 'Proyecto eliminado',
           message: `El proyecto “${project.name}” se eliminó correctamente.`,
@@ -274,6 +288,13 @@ export class Project implements OnDestroy, OnInit {
       description: '',
       active: true,
     };
+  }
+
+  private resetPageForLocalFilter(): void {
+    if (this.currentPage() !== 1) {
+      this.currentPage.set(1);
+      this.loadProjects();
+    }
   }
 }
 

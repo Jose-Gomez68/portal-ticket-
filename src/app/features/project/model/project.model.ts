@@ -9,6 +9,13 @@ export interface ProjectModel {
   updatedDate: string | null;
 }
 
+export interface ProjectPageModel {
+  totalItems: number;
+  page: number;
+  size: number;
+  response: ProjectModel[];
+}
+
 export type NewProjectModel = Pick<ProjectModel, 'name' | 'description' | 'active'>;
 export type UpdateProjectModel = Pick<
   ProjectModel,

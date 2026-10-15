@@ -1,8 +1,14 @@
 import { Injectable } from '@angular/core';
+import { HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ApiService } from '../../../core/service/api.service';
-import type { NewProjectModel, ProjectModel, UpdateProjectModel } from '../model/project.model';
+import type {
+  NewProjectModel,
+  ProjectModel,
+  ProjectPageModel,
+  UpdateProjectModel,
+} from '../model/project.model';
 
 @Injectable({
   providedIn: 'root',
@@ -13,13 +19,13 @@ export class ProjectService {
   private readonly endpoint = 'project';
   constructor(private readonly api: ApiService) {}
 
-  getAllProjects(): Observable<ProjectModel[]> {
-    return this.api.get<unknown>(`${this.endpoint}/getAllProject`).pipe(
-      map((response) =>
-        unwrapData(response, (data): data is ProjectModel[] =>
-          Array.isArray(data) && data.every(isProjectModel),
-        ),
-      ),
+  getAllProjects(page: number, size: number): Observable<ProjectPageModel> {
+    const params = new HttpParams()
+      .set('page', page)
+      .set('size', size);
+
+    return this.api.get<unknown>(`${this.endpoint}/getAllProjectPage`, params).pipe(
+      map((response) => unwrapData(response, isProjectPageModel)),
     );
   }
 
@@ -91,5 +97,26 @@ function isProjectModel(value: unknown): value is ProjectModel {
     (typeof project['createdDate'] === 'string' || project['createdDate'] === null) &&
     (typeof project['updatedBy'] === 'string' || project['updatedBy'] === null) &&
     (typeof project['updatedDate'] === 'string' || project['updatedDate'] === null)
+  );
+}
+
+function isProjectPageModel(value: unknown): value is ProjectPageModel {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const page = value as Record<string, unknown>;
+  return (
+    typeof page['totalItems'] === 'number' &&
+    Number.isFinite(page['totalItems']) &&
+    page['totalItems'] >= 0 &&
+    typeof page['page'] === 'number' &&
+    Number.isInteger(page['page']) &&
+    page['page'] >= 0 &&
+    typeof page['size'] === 'number' &&
+    Number.isInteger(page['size']) &&
+    page['size'] > 0 &&
+    Array.isArray(page['response']) &&
+    page['response'].every(isProjectModel)
   );
 }

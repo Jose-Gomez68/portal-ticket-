@@ -51,7 +51,7 @@
         <div>
           <p class="text-label-sm uppercase text-text-muted">Proyectos activos</p>
           <p class="mt-1 text-headline-md font-semibold">{{ activeCount() }}</p>
-          <p class="text-body-sm text-text-muted">Disponibles para incidencias</p>
+          <p class="text-body-sm text-text-muted">En esta página</p>
         </div>
       </article>
 
@@ -65,7 +65,7 @@
         <div>
           <p class="text-label-sm uppercase text-text-muted">Proyectos inactivos</p>
           <p class="mt-1 text-headline-md font-semibold">{{ inactiveCount() }}</p>
-          <p class="text-body-sm text-text-muted">No disponibles para incidencias</p>
+          <p class="text-body-sm text-text-muted">En esta página</p>
         </div>
       </article>
     </section>
@@ -73,7 +73,7 @@
     <section class="flex flex-col gap-3 rounded-panel border border-border bg-surface p-3 shadow-panel md:flex-row md:items-center md:justify-between">
       <div class="flex w-full flex-col gap-3 sm:flex-row md:max-w-3xl">
         <label class="relative block flex-1">
-          <span class="sr-only">Buscar proyectos</span>
+          <span class="sr-only">Buscar en esta página de proyectos</span>
           <svg class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <circle cx="10.8" cy="10.8" r="6.8" />
             <path d="m16 16 4.5 4.5" />
@@ -81,13 +81,13 @@
           <input
             class="h-10 w-full rounded-control border border-border bg-surface pl-9 pr-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
             type="search"
-            placeholder="Buscar proyecto..."
+            placeholder="Buscar en esta página..."
             [value]="searchTerm()"
             (input)="updateSearch($event)"
           >
         </label>
         <label>
-          <span class="sr-only">Filtrar por estado del proyecto</span>
+          <span class="sr-only">Filtrar por estado en esta página</span>
           <select
             class="h-10 w-full cursor-pointer rounded-control border border-border bg-surface px-3 text-body-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 sm:w-56"
             [value]="selectedStatus()"
@@ -147,6 +147,17 @@
           Ajusta la búsqueda o el filtro para ver otros proyectos.
         </p>
       </section>
+      @if (totalCount() > 0) {
+        <app-pagination
+          [totalItems]="totalCount()"
+          [currentPage]="currentPage()"
+          [pageSize]="pageSize()"
+          itemLabel="proyectos"
+          navigationLabel="Paginación de proyectos"
+          (pageChange)="goToPage($event)"
+          (pageSizeChange)="updatePageSize($event)"
+        />
+      }
     } @else if (viewMode() === 'cards') {
       <section class="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Proyectos">
         @for (project of visibleProjects(); track project.projectID) {
@@ -227,7 +238,7 @@
                   <span>
                     Creado:
                     @if (project.createdDate) {
-                      {{ project.createdDate | date: 'dd MMM yyyy' }}
+                      {{ project.createdDate | date: 'dd MMM yyyy, HH:mm:ss' }}
                     } @else {
                       Sin fecha
                     }
@@ -241,9 +252,9 @@
           </article>
         }
       </section>
-      @if (filteredProjects().length > 0) {
+      @if (totalCount() > 0) {
         <app-pagination
-          [totalItems]="filteredProjects().length"
+          [totalItems]="totalCount()"
           [currentPage]="currentPage()"
           [pageSize]="pageSize()"
           itemLabel="proyectos"
@@ -286,7 +297,7 @@
                     }
                   </td>
                   <td class="whitespace-nowrap px-4 py-3.5 text-body-sm text-text-muted">
-                    {{ project.createdDate ? (project.createdDate | date: 'dd/MM/yyyy') : 'Sin fecha' }}
+                    {{ project.createdDate ? (project.createdDate | date: 'dd/MM/yyyy HH:mm:ss') : 'Sin fecha' }}
                   </td>
                   <td class="px-4 py-3.5 text-right">
                     <div
@@ -334,9 +345,9 @@
             </tbody>
           </table>
         </div>
-        @if (filteredProjects().length > 0) {
+        @if (totalCount() > 0) {
           <app-pagination
-            [totalItems]="filteredProjects().length"
+            [totalItems]="totalCount()"
             [currentPage]="currentPage()"
             [pageSize]="pageSize()"
             itemLabel="proyectos"

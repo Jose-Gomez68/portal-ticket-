@@ -14,14 +14,21 @@ const createProject = (projectID: number, name: string, active = true) => ({
   updatedDate: null,
 });
 
+const createProjectPage = (response: ReturnType<typeof createProject>[], page: number, size: number, totalItems = response.length) => ({
+  totalItems,
+  page,
+  size,
+  response,
+});
+
 describe('Project', () => {
   let component: Project;
   let fixture: ComponentFixture<Project>;
   const projectService = {
-    getAllProjects: vi.fn(() => of([
+    getAllProjects: vi.fn((page = 0, size = 10) => of(createProjectPage([
       createProject(1, 'Proyecto activo'),
       createProject(2, 'Proyecto inactivo', false),
-    ])),
+    ], page, size))),
     createProject: vi.fn((project) =>
       of({ ...createProject(3, project.name, project.active), description: project.description }),
     ),
@@ -51,7 +58,7 @@ describe('Project', () => {
   });
 
   it('loads projects and calculates status counts', () => {
-    expect(projectService.getAllProjects).toHaveBeenCalled();
+    expect(projectService.getAllProjects).toHaveBeenCalledWith(0, 10);
     expect(component['totalCount']()).toBe(2);
     expect(component['activeCount']()).toBe(1);
     expect(component['inactiveCount']()).toBe(1);
@@ -69,12 +76,19 @@ describe('Project', () => {
   });
 
   it('paginates the same projects in card and table views', () => {
-    component['projects'].set(
-      Array.from({ length: 15 }, (_, index) =>
-        createProject(index + 1, `Proyecto ${index + 1}`),
-      ),
+    const allProjects = Array.from({ length: 15 }, (_, index) =>
+      createProject(index + 1, `Proyecto ${index + 1}`),
+    );
+    projectService.getAllProjects.mockImplementation((page = 0, size = 10) =>
+      of(createProjectPage(
+        allProjects.slice(page * size, (page + 1) * size),
+        page,
+        size,
+        allProjects.length,
+      )),
     );
     component['selectedStatus'].set('');
+    component['loadProjects']();
     fixture.detectChanges();
 
     expect(component['visibleProjects']()).toHaveLength(10);
@@ -87,6 +101,7 @@ describe('Project', () => {
     component['goToPage'](2);
     fixture.detectChanges();
 
+    expect(projectService.getAllProjects).toHaveBeenLastCalledWith(1, 10);
     expect(component['visibleProjects']()).toHaveLength(5);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Mostrando 11-15 de 15 proyectos');
@@ -105,6 +120,10 @@ describe('Project', () => {
         createProject(index + 1, `Proyecto ${index + 1}`),
       ),
     );
+    component['totalItems'].set(15);
+    projectService.getAllProjects.mockImplementation((page = 0, size = 10) =>
+      of(createProjectPage([], page, size, 15)),
+    );
     component['selectedStatus'].set('');
     component['goToPage'](2);
 
@@ -112,7 +131,7 @@ describe('Project', () => {
       target: { value: 'Proyecto 1' },
     } as unknown as Event);
     expect(component['currentPage']()).toBe(1);
-    expect(component['filteredProjects']()).toHaveLength(7);
+    expect(component['searchTerm']()).toBe('Proyecto 1');
 
     component['goToPage'](2);
     component['updateStatusFilter']({
@@ -124,6 +143,7 @@ describe('Project', () => {
     component['updatePageSize'](5);
     expect(component['currentPage']()).toBe(1);
     expect(component['pageSize']()).toBe(5);
+    expect(projectService.getAllProjects).toHaveBeenLastCalledWith(0, 5);
   });
 
   it('shows the registration toast when opening the new-project modal', () => {
@@ -137,6 +157,13 @@ describe('Project', () => {
   });
 
   it('creates a project and displays a success toast', () => {
+    const createdProject = {
+      ...createProject(3, 'Nuevo sistema'),
+      description: 'Descripción del nuevo sistema',
+    };
+    projectService.getAllProjects.mockReturnValueOnce(
+      of(createProjectPage([createdProject], 0, 10, 3)),
+    );
     component['openCreateModal']();
     component['newProject'] = {
       name: '  Nuevo sistema  ',
@@ -158,6 +185,13 @@ describe('Project', () => {
 
   it('opens the edit modal with the selected project and updates it', () => {
     const project = createProject(7, 'Proyecto original');
+    const updatedProject = {
+      ...createProject(7, 'Proyecto editado', false),
+      description: 'Descripción editada',
+    };
+    projectService.getAllProjects.mockReturnValueOnce(
+      of(createProjectPage([updatedProject], 0, 10, 1)),
+    );
     component['projects'].set([project]);
     component['editProject'](project);
     component['newProject'] = {
@@ -183,6 +217,10 @@ describe('Project', () => {
   it('deletes a project after confirmation and updates the list', () => {
     const project = createProject(5, 'Proyecto a eliminar');
     component['projects'].set([project]);
+    component['totalItems'].set(1);
+    projectService.getAllProjects.mockReturnValueOnce(
+      of(createProjectPage([], 0, 10, 0)),
+    );
     component['openDeleteConfirmation'](project);
 
     component['deleteProject']();
