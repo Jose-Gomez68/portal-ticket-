@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
+import { vi } from 'vitest';
 import { User } from './user';
 import { UserService } from './service/user.service';
 import { AreaService } from '../area/service/area.service';
@@ -63,5 +64,29 @@ describe('User', () => {
 
     expect(compiled.querySelector('app-pagination')).not.toBeNull();
     expect(compiled.querySelector('table tbody tr')?.textContent).toContain('test.user');
+  });
+
+  it('renders user roles with their Spanish labels', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('table tbody tr')?.textContent).toContain('Solicitante');
+    expect(compiled.querySelector('table tbody tr')?.textContent).not.toContain('REQUESTER');
+  });
+
+  it('automatically dismisses success notifications after five seconds', () => {
+    vi.useFakeTimers();
+    try {
+      fixture.componentInstance['showToast']({
+        title: 'Usuario creado',
+        message: 'La cuenta se creó correctamente.',
+      });
+      expect(fixture.componentInstance['toastMessage']()).not.toBeNull();
+
+      vi.advanceTimersByTime(5000);
+
+      expect(fixture.componentInstance['toastMessage']()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

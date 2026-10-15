@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { computed, Component, inject, OnInit, signal } from '@angular/core';
+import { computed, Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ErrorAlert } from '../../shared/ui/error-alert/error-alert';
 import { FeedbackToast } from '../../shared/ui/feedback-toast/feedback-toast';
@@ -16,9 +16,10 @@ import { UserService } from './service/user.service';
   styleUrl: './user.css',
   templateUrl: './user.html',
 })
-export class User implements OnInit {
+export class User implements OnDestroy, OnInit {
   private readonly userService = inject(UserService);
   private readonly areaService = inject(AreaService);
+  private toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly users = signal<UserModel[]>([]);
   protected readonly areas = signal<AreaModel[]>([]);
@@ -73,6 +74,15 @@ export class User implements OnInit {
   protected newUser: UserFormModel = this.createEmptyUser();
   protected passwordConfirmation = '';
   protected passwordMismatch = false;
+
+  ngOnDestroy(): void {
+    this.clearToastTimeout();
+  }
+
+  // La etiqueta en español de cada rol está definida en USER_ROLES (user.model.ts).
+  protected roleLabel(role: UserModel['role']): string {
+    return USER_ROLES.find((option) => option.value === role)?.label ?? role;
+  }
 
   ngOnInit(): void {
     this.loadUsers();
@@ -166,7 +176,7 @@ export class User implements OnInit {
         );
         this.isDeleting.set(false);
         this.userToDelete.set(null);
-        this.toastMessage.set({
+        this.showToast({
           title: 'Usuario eliminado',
           message: `La cuenta de ${user.name} ${user.apPaterno} se eliminó correctamente.`,
         });
@@ -277,7 +287,7 @@ export class User implements OnInit {
           );
           this.isSaving.set(false);
           this.closeModal();
-          this.toastMessage.set({
+          this.showToast({
             title: 'Usuario actualizado',
             message: `La cuenta de ${user.name} ${user.apPaterno} se actualizó correctamente.`,
           });
@@ -299,7 +309,7 @@ export class User implements OnInit {
         this.isSaving.set(false);
         this.isModalOpen.set(false);
         this.currentPage.set(1);
-        this.toastMessage.set({
+        this.showToast({
           title: 'Usuario creado',
           message: `La cuenta de ${user.name} ${user.apPaterno} se creó correctamente.`,
         });
@@ -314,7 +324,21 @@ export class User implements OnInit {
   }
 
   protected dismissToast(): void {
+    this.clearToastTimeout();
     this.toastMessage.set(null);
+  }
+
+  private showToast(toast: { title: string; message: string }): void {
+    this.clearToastTimeout();
+    this.toastMessage.set(toast);
+    this.toastTimeout = setTimeout(() => this.dismissToast(), 5000);
+  }
+
+  private clearToastTimeout(): void {
+    if (this.toastTimeout !== null) {
+      clearTimeout(this.toastTimeout);
+      this.toastTimeout = null;
+    }
   }
 
   private createEmptyUser(): UserFormModel {
