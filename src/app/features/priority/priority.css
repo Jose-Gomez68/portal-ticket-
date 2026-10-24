@@ -1,0 +1,28 @@
+:host {
+  display: block;
+}
+
+.priority-view {
+  min-height: calc(100vh - 3.5rem);
+}
+
+@supports (min-height: 100dvh) {
+  .priority-view {
+    min-height: calc(100dvh - 3.5rem);
+  }
+}
+
+.priority-loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: priority-spinner-rotation 0.7s linear infinite;
+}
+
+@keyframes priority-spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}

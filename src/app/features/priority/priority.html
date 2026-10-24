@@ -1,0 +1,338 @@
+<main class="priority-view bg-surface-container-low p-4 text-neutral sm:p-6 lg:p-8" (click)="closeActionsMenu()">
+  <div class="mx-auto max-w-[1440px] space-y-6">
+    @if (errorMessage()) {
+      <app-error-alert [message]="errorMessage()" />
+    }
+
+    <section class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="text-label-sm text-text-muted">Configuración / Incidencias</p>
+        <h1 class="mt-1 text-headline-lg font-semibold tracking-tight">Prioridades</h1>
+        <p class="mt-1 max-w-2xl text-body-sm text-text-muted">
+          Administra las prioridades y sus colores para clasificar los tickets.
+        </p>
+      </div>
+      <button class="btn btn-primary w-full sm:w-auto" type="button" (click)="openCreateModal()">
+        <span aria-hidden="true" class="text-lg leading-none">+</span>
+        Nueva prioridad
+      </button>
+    </section>
+
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="Resumen de prioridades">
+      <article class="rounded-lg border border-border bg-surface p-4 shadow-panel">
+        <h2 class="text-label-sm uppercase tracking-wide text-text-muted">Total de prioridades</h2>
+        <p class="mt-3 text-headline-lg font-semibold">{{ totalCount() }} registros</p>
+        <p class="mt-1 text-body-sm text-text-muted">Configuradas en el catálogo</p>
+      </article>
+      <article class="rounded-lg border border-border bg-surface p-4 shadow-panel">
+        <h2 class="text-label-sm uppercase tracking-wide text-text-muted">Activas</h2>
+        <p class="mt-3 text-headline-lg font-semibold">{{ activeCount() }}</p>
+        <p class="mt-1 text-body-sm text-text-muted">Disponibles para nuevos tickets</p>
+      </article>
+      <article class="rounded-lg border border-border bg-surface p-4 shadow-panel">
+        <h2 class="text-label-sm uppercase tracking-wide text-text-muted">Inactivas</h2>
+        <p class="mt-3 text-headline-lg font-semibold">{{ inactiveCount() }}</p>
+        <p class="mt-1 text-body-sm text-text-muted">Desactivadas en el catálogo</p>
+      </article>
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-lg border border-border bg-surface p-3 shadow-panel lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap lg:w-auto">
+        <label class="relative block min-w-60">
+          <span class="sr-only">Buscar prioridades</span>
+          <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-text-muted">⌕</span>
+          <input
+            class="h-9 w-full rounded-control border border-border bg-surface pl-9 pr-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+            type="search"
+            placeholder="Buscar prioridad..."
+            [value]="searchTerm()"
+            (input)="updateSearch($event)"
+          >
+        </label>
+        <label>
+          <span class="sr-only">Filtrar prioridades por estado</span>
+          <select
+            class="h-9 w-full cursor-pointer rounded-control border border-border bg-surface px-3 text-body-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 sm:w-auto"
+            [value]="selectedStatus()"
+            (change)="updateStatusFilter($event)"
+          >
+            <option value="">Todos los estados</option>
+            <option value="active">Activas</option>
+            <option value="inactive">Inactivas</option>
+          </select>
+        </label>
+      </div>
+      <p class="text-body-sm text-text-muted">
+        {{ filteredPriorities().length }} de {{ totalCount() }} prioridades
+      </p>
+    </section>
+
+    <section class="overflow-hidden rounded-lg border border-border bg-surface shadow-panel" aria-label="Listado de prioridades">
+      @if (isLoading()) {
+        <p class="px-4 py-12 text-center text-body-sm text-text-muted" role="status">
+          Cargando prioridades...
+        </p>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[680px] border-collapse text-left">
+            <thead>
+              <tr class="border-b border-border bg-surface-muted text-label-sm uppercase text-text-muted">
+                <th class="px-4 py-3 font-semibold" scope="col">Prioridad</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Color</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Estado</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Fecha de creación</th>
+                <th class="px-4 py-3 text-right font-semibold" scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              @for (priority of visiblePriorities(); track priority.priorityID) {
+                <tr class="transition-colors hover:bg-surface-muted">
+                  <td class="whitespace-nowrap px-4 py-3.5">
+                    <div class="flex items-center gap-3">
+                      <span
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-control font-semibold"
+                        [style.backgroundColor]="getBackgroundColor(priority)"
+                        [style.color]="getDotColor(priority)"
+                      >
+                        {{ priority.name.charAt(0).toUpperCase() }}
+                      </span>
+                      <span class="font-semibold text-neutral">{{ priority.name }}</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3.5">
+                    <span
+                      class="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-label-sm"
+                      [style.backgroundColor]="getBackgroundColor(priority)"
+                      [style.borderColor]="getDotColor(priority)"
+                      [style.color]="getDotColor(priority)"
+                    >
+                      <span class="h-2 w-2 rounded-full" [style.backgroundColor]="getDotColor(priority)"></span>
+                      {{ getColorLabel(priority) }}
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3.5">
+                    @if (priority.active) {
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-status-closed-border bg-status-closed-bg px-2.5 py-1 text-label-sm text-status-closed">
+                        <span class="h-1.5 w-1.5 rounded-full bg-status-closed"></span>
+                        Activa
+                      </span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-label-sm text-text-muted">
+                        <span class="h-1.5 w-1.5 rounded-full bg-text-muted"></span>
+                        Inactiva
+                      </span>
+                    }
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3.5 text-body-sm text-text-muted">
+                    {{ priority.createdDate ? (priority.createdDate | date: 'dd MMM yyyy') : '—' }}
+                  </td>
+                  <td class="px-4 py-3.5 text-right">
+                    @if (priority.active) {
+                      <div
+                        class="relative inline-block text-left"
+                        (click)="$event.stopPropagation()"
+                        (keydown.escape)="closeActionsMenu()"
+                      >
+                        <button
+                          [attr.aria-expanded]="openActionsMenuPriorityID() === priority.priorityID"
+                          [attr.aria-label]="'Acciones para ' + priority.name"
+                          aria-haspopup="menu"
+                          class="flex h-9 w-9 items-center justify-center rounded-control border border-border text-lg leading-none text-text-secondary transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-focus/30"
+                          type="button"
+                          (click)="toggleActionsMenu(priority.priorityID, $event)"
+                        >
+                          <span aria-hidden="true">⋮</span>
+                        </button>
+                        @if (openActionsMenuPriorityID() === priority.priorityID) {
+                          <div class="absolute right-0 z-20 mt-1 w-36 rounded-control border border-border bg-surface py-1 text-left shadow-panel" role="menu">
+                            <button class="block w-full px-3 py-2 text-left text-body-sm text-neutral transition-colors hover:bg-surface-muted" role="menuitem" type="button" (click)="editPriority(priority)">
+                              Editar
+                            </button>
+                            <button class="block w-full px-3 py-2 text-left text-body-sm text-destructive transition-colors hover:bg-surface-muted" role="menuitem" type="button" (click)="openDeleteConfirmation(priority)">
+                              Eliminar
+                            </button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td class="px-4 py-12 text-center text-body-sm text-text-muted" colspan="5">
+                    No se encontraron prioridades con esos filtros.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <app-pagination
+        [totalItems]="filteredPriorities().length"
+        [currentPage]="currentPage()"
+        [pageSize]="pageSize()"
+        itemLabel="prioridades"
+        navigationLabel="Paginación de prioridades"
+        [embedded]="true"
+        (pageChange)="goToPage($event)"
+        (pageSizeChange)="updatePageSize($event)"
+      />
+    </section>
+  </div>
+
+  @if (isModalOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]"
+      role="presentation"
+      (click)="closeModal()"
+      (keydown.escape)="closeModal()"
+    >
+      <section
+        aria-labelledby="priority-modal-title"
+        aria-modal="true"
+        class="w-full max-w-xl overflow-hidden rounded-lg border border-border bg-surface shadow-modal"
+        role="dialog"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="flex items-start justify-between border-b border-border px-6 py-5">
+          <div>
+            <h2 class="text-headline-sm font-semibold" id="priority-modal-title">
+              {{ editingPriorityID() === null ? 'Nueva prioridad' : 'Editar prioridad' }}
+            </h2>
+            <p class="mt-1 text-body-sm text-text-muted">
+              Define el nombre y el color identificador de la prioridad.
+            </p>
+          </div>
+          <button
+            aria-label="Cerrar"
+            class="rounded-control px-2 py-1 text-xl text-text-muted transition-colors hover:bg-surface-muted hover:text-neutral"
+            type="button"
+            (click)="closeModal()"
+          >
+            ×
+          </button>
+        </header>
+
+        <form class="space-y-5 p-6" (ngSubmit)="savePriority()">
+          <div class="space-y-1.5">
+            <label class="block text-label-md font-medium" for="priority-name">
+              Nombre de la prioridad <span class="text-destructive">*</span>
+            </label>
+            <input
+              id="priority-name"
+              class="h-9 w-full rounded-control border border-border bg-surface px-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              name="priorityName"
+              [(ngModel)]="newPriority.name"
+              placeholder="Ej. Crítica"
+              required
+              maxlength="100"
+            >
+          </div>
+
+          <fieldset class="space-y-2">
+            <legend class="text-label-md font-medium">
+              Color identificador <span class="text-destructive">*</span>
+            </legend>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              @for (color of colorOptions; track color.dotColor) {
+                <button
+                  class="flex flex-col items-center rounded-control border p-2 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-focus/30"
+                  [class.border-focus]="newPriority.dotColor === color.dotColor"
+                  [class.border-border]="newPriority.dotColor !== color.dotColor"
+                  [class.ring-2]="newPriority.dotColor === color.dotColor"
+                  [style.backgroundColor]="color.backgroundColor"
+                  [attr.aria-pressed]="newPriority.dotColor === color.dotColor"
+                  [attr.aria-label]="color.label + ', ' + color.meaning"
+                  type="button"
+                  (click)="chooseColor(color)"
+                >
+                  <span class="mb-1 h-4 w-4 rounded-full shadow-sm" [style.backgroundColor]="color.dotColor"></span>
+                  <span class="text-label-sm font-semibold" [style.color]="color.dotColor">{{ color.label }}</span>
+                  <span class="text-label-sm text-text-muted">{{ color.meaning }}</span>
+                </button>
+            }
+            </div>
+            </fieldset>
+
+            @if (errorMessage()) {
+              <app-error-alert [message]="errorMessage()" />
+            }
+
+          <footer class="flex justify-end gap-2 border-t border-border pt-4">
+            <button class="btn btn-secondary btn-compact" type="button" [disabled]="isSaving()" (click)="closeModal()">
+              Cancelar
+            </button>
+            <button
+              class="btn btn-primary btn-compact inline-flex items-center gap-2"
+              type="submit"
+              [disabled]="isSaving()"
+              [attr.aria-busy]="isSaving()"
+            >
+              @if (isSaving()) {
+                <span aria-hidden="true" class="priority-loading-spinner"></span>
+                <span>{{ editingPriorityID() === null ? 'Guardando...' : 'Actualizando...' }}</span>
+              } @else {
+                <span>{{ editingPriorityID() === null ? 'Guardar prioridad' : 'Actualizar prioridad' }}</span>
+              }
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (priorityToDelete(); as priority) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]"
+      role="presentation"
+      (click)="closeDeleteConfirmation()"
+      (keydown.escape)="closeDeleteConfirmation()"
+    >
+      <section
+        aria-labelledby="priority-delete-title"
+        aria-modal="true"
+        class="w-full max-w-md overflow-hidden rounded-lg border border-border bg-surface shadow-modal"
+        role="alertdialog"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="space-y-3 p-6">
+          <h2 class="text-headline-sm font-semibold" id="priority-delete-title">Eliminar prioridad</h2>
+          <p class="text-body-sm text-text-secondary">
+            ¿Deseas eliminar la prioridad
+            <span class="font-semibold text-neutral">“{{ priority.name }}”</span>?
+            El API la desactivará para que no esté disponible en nuevos tickets.
+          </p>
+          @if (errorMessage()) {
+            <app-error-alert [message]="errorMessage()" />
+          }
+        </div>
+        <footer class="flex justify-end gap-2 border-t border-border px-6 py-4">
+          <button class="btn btn-secondary btn-compact" type="button" [disabled]="isDeleting()" (click)="closeDeleteConfirmation()">
+            Cancelar
+          </button>
+          <button
+            class="btn btn-destructive btn-compact"
+            type="button"
+            [disabled]="isDeleting()"
+            [attr.aria-busy]="isDeleting()"
+            (click)="deletePriority()"
+          >
+            {{ isDeleting() ? 'Eliminando...' : 'Eliminar prioridad' }}
+          </button>
+        </footer>
+      </section>
+    </div>
+  }
+
+  @if (toastMessage(); as toast) {
+    <div class="fixed bottom-6 right-6 z-[60]">
+      <app-feedback-toast
+        [title]="toast.title"
+        [message]="toast.message"
+        (dismissed)="dismissToast()"
+      />
+    </div>
+  }
+</main>

@@ -14,6 +14,10 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'area' },
       { path: 'area', component: Area },
       { path: 'project', component: Project },
+      {
+        path: 'priority',
+        loadComponent: () => import('./features/priority/priority').then((module) => module.Priority),
+      },
       { path: 'status', component: Status },
       { path: 'type', component: Type },
       { path: 'user', component: User },
