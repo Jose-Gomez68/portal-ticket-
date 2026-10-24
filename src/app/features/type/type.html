@@ -1,0 +1,315 @@
+<main class="type-view bg-surface-container-low p-4 text-neutral sm:p-6 lg:p-8" (click)="closeActionsMenu()">
+  <div class="mx-auto max-w-[1440px] space-y-6">
+    @if (errorMessage()) {
+      <app-error-alert [message]="errorMessage()" />
+    }
+
+    <section class="space-y-4">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="text-label-sm text-text-muted">Configuración / Catálogos</p>
+          <h1 class="mt-1 text-headline-lg font-semibold tracking-tight">Tipos de incidencia</h1>
+          <p class="mt-1 max-w-2xl text-body-sm text-text-muted">
+            Administra las tipologías disponibles para clasificar los tickets.
+          </p>
+        </div>
+        <button class="btn btn-primary w-full sm:w-auto" type="button" (click)="openCreateModal()">
+          <span aria-hidden="true" class="text-lg leading-none">+</span>
+          Nuevo tipo de incidencia
+        </button>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="Resumen de tipos de incidencia">
+      <article class="rounded-lg border border-border bg-surface p-4 shadow-panel">
+        <div class="flex items-center justify-between text-text-muted">
+          <h2 class="text-label-sm uppercase tracking-wide">Total de tipos</h2>
+          <span aria-hidden="true" class="text-lg text-primary">▤</span>
+        </div>
+        <p class="mt-3 text-headline-lg font-semibold">{{ totalCount() }} Registros</p>
+        <p class="mt-1 text-body-sm text-text-muted">Configuradas en el catálogo</p>
+      </article>
+
+      <article class="rounded-lg border border-border bg-surface p-4 shadow-panel">
+        <div class="flex items-center justify-between text-text-muted">
+          <h2 class="text-label-sm uppercase tracking-wide">Activos para tickets</h2>
+          <span aria-hidden="true" class="text-lg text-status-closed">✓</span>
+        </div>
+        <p class="mt-3 text-headline-lg font-semibold">{{ activeCount() }} activos</p>
+        <p class="mt-1 text-body-sm text-text-muted">
+          {{ inactiveCount() }} inactivos
+        </p>
+      </article>
+
+      <article class="rounded-lg border border-border bg-surface p-4 shadow-panel">
+        <div class="flex items-center justify-between text-text-muted">
+          <h2 class="text-label-sm uppercase tracking-wide">Tickets asignados</h2>
+          <span aria-hidden="true" class="text-lg text-secondary">#</span>
+        </div>
+        <p class="mt-3 text-headline-lg font-semibold">No disponible</p>
+        <p class="mt-1 text-body-sm text-text-muted">El catálogo no proporciona este conteo.</p>
+      </article>
+    </section>
+
+    <section class="flex flex-col gap-3 rounded-lg border border-border bg-surface p-3 shadow-panel lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap lg:w-auto">
+        <label class="relative block min-w-60">
+          <span class="sr-only">Buscar tipos de incidencia</span>
+          <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-text-muted">⌕</span>
+          <input
+            class="h-9 w-full rounded-control border border-border bg-surface pl-9 pr-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+            type="search"
+            placeholder="Buscar por nombre..."
+            [value]="searchTerm()"
+            (input)="updateSearch($event)"
+          >
+        </label>
+
+        <label>
+          <span class="sr-only">Filtrar por estado</span>
+          <select
+            class="h-9 w-full cursor-pointer rounded-control border border-border bg-surface px-3 text-body-sm text-neutral focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15 sm:w-auto"
+            [value]="selectedStatus()"
+            (change)="updateStatusFilter($event)"
+          >
+            <option value="">Todos los estados</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Inactivos</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+        <p class="text-body-sm text-text-muted">
+          {{ filteredTypes().length }} de {{ totalCount() }} tipos
+        </p>
+      </div>
+    </section>
+
+    <section class="overflow-hidden rounded-lg border border-border bg-surface shadow-panel" aria-label="Listado de tipos de incidencia">
+      @if (isLoading()) {
+        <p class="px-4 py-12 text-center text-body-sm text-text-muted" role="status">
+          Cargando tipos de incidencia...
+        </p>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[640px] border-collapse text-left">
+            <thead>
+              <tr class="border-b border-border bg-surface-muted text-label-sm uppercase text-text-muted">
+                <th class="px-4 py-3 font-semibold" scope="col">Nombre del tipo</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Estado</th>
+                <th class="px-4 py-3 font-semibold" scope="col">Fecha de creación</th>
+                <th class="px-4 py-3 text-right font-semibold" scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              @for (type of visibleTypes(); track type.kindID) {
+                <tr class="transition-colors hover:bg-surface-muted">
+                  <td class="whitespace-nowrap px-4 py-3.5">
+                    <div class="flex items-center gap-3">
+                      <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-primary/10 font-semibold text-primary">
+                        {{ type.name.charAt(0).toUpperCase() }}
+                      </span>
+                      <span>
+                        <span class="block font-semibold text-neutral">{{ type.name }}</span>
+                        <span class="block font-mono text-label-sm text-text-muted">{{ getTypeCode(type) }}</span>
+                      </span>
+                    </div>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3.5">
+                    @if (type.active) {
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-status-closed-border bg-status-closed-bg px-2.5 py-1 text-label-sm text-status-closed">
+                        <span class="h-1.5 w-1.5 rounded-full bg-status-closed"></span>
+                        Activo
+                      </span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-label-sm text-text-muted">
+                        <span class="h-1.5 w-1.5 rounded-full bg-text-muted"></span>
+                        Inactivo
+                      </span>
+                    }
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3.5 text-body-sm text-text-muted">
+                    {{ type.createdDate ? (type.createdDate | date: 'dd MMM yyyy') : '—' }}
+                  </td>
+                  <td class="px-4 py-3.5 text-right">
+                    @if (type.active === true) {
+                      <div
+                        class="relative inline-block text-left"
+                        (click)="$event.stopPropagation()"
+                        (keydown.escape)="closeActionsMenu()"
+                      >
+                        <button
+                          [attr.aria-expanded]="openActionsMenuTypeID() === type.kindID"
+                          [attr.aria-label]="'Acciones para ' + type.name"
+                          aria-haspopup="menu"
+                          class="flex h-9 w-9 items-center justify-center rounded-control border border-border text-lg leading-none text-text-secondary transition-colors hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-focus/30"
+                          type="button"
+                          (click)="toggleActionsMenu(type.kindID, $event)"
+                        >
+                          <span aria-hidden="true">⋮</span>
+                        </button>
+                        @if (openActionsMenuTypeID() === type.kindID) {
+                          <div class="absolute right-0 z-20 mt-1 w-36 rounded-control border border-border bg-surface py-1 text-left shadow-panel" role="menu">
+                            <button class="block w-full px-3 py-2 text-left text-body-sm text-neutral transition-colors hover:bg-surface-muted" role="menuitem" type="button" (click)="editType(type)">
+                              Editar
+                            </button>
+                            <button class="block w-full px-3 py-2 text-left text-body-sm text-destructive transition-colors hover:bg-surface-muted" role="menuitem" type="button" (click)="openDeleteConfirmation(type)">
+                              Eliminar
+                            </button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td class="px-4 py-12 text-center text-body-sm text-text-muted" colspan="4">
+                    No se encontraron tipos con esos filtros.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <app-pagination
+        [totalItems]="filteredTypes().length"
+        [currentPage]="currentPage()"
+        [pageSize]="pageSize()"
+        itemLabel="tipos de incidencia"
+        navigationLabel="Paginación de tipos de incidencia"
+        [embedded]="true"
+        (pageChange)="goToPage($event)"
+        (pageSizeChange)="updatePageSize($event)"
+      />
+    </section>
+  </div>
+
+  @if (isModalOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]"
+      role="presentation"
+      (click)="closeModal()"
+      (keydown.escape)="closeModal()"
+    >
+      <section
+        aria-labelledby="type-modal-title"
+        aria-modal="true"
+        class="w-full max-w-lg overflow-hidden rounded-lg border border-border bg-surface shadow-modal"
+        role="dialog"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="flex items-start justify-between border-b border-border px-6 py-5">
+          <div>
+            <h2 class="text-headline-sm font-semibold" id="type-modal-title">
+              {{ editingTypeID() === null ? 'Nuevo tipo de incidencia' : 'Editar tipo de incidencia' }}
+            </h2>
+            <p class="mt-1 text-body-sm text-text-muted">
+              Registra una tipología para clasificar los tickets.
+            </p>
+          </div>
+          <button
+            aria-label="Cerrar"
+            class="rounded-control px-2 py-1 text-xl text-text-muted transition-colors hover:bg-surface-muted hover:text-neutral"
+            type="button"
+            (click)="closeModal()"
+          >
+            ×
+          </button>
+        </header>
+
+        <form class="space-y-4 p-6" (ngSubmit)="saveType()">
+          <div class="space-y-1.5">
+            <label class="block text-label-md font-medium" for="type-name">
+              Nombre del tipo de incidencia <span class="text-destructive">*</span>
+            </label>
+            <input
+              id="type-name"
+              class="h-9 w-full rounded-control border border-border bg-surface px-3 text-body-sm text-neutral placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15"
+              name="typeName"
+              [(ngModel)]="newType.name"
+              placeholder="Ej. Incidencia técnica"
+              required
+              maxlength="100"
+            >
+          </div>
+
+          <footer class="flex justify-end gap-2 border-t border-border pt-4">
+            <button class="btn btn-secondary btn-compact" type="button" [disabled]="isSaving()" (click)="closeModal()">
+              Cancelar
+            </button>
+            <button
+              class="btn btn-primary btn-compact inline-flex items-center gap-2"
+              type="submit"
+              [disabled]="isSaving()"
+              [attr.aria-busy]="isSaving()"
+            >
+              @if (isSaving()) {
+                <span aria-hidden="true" class="type-loading-spinner"></span>
+                <span>{{ editingTypeID() === null ? 'Guardando...' : 'Actualizando...' }}</span>
+              } @else {
+                <span>{{ editingTypeID() === null ? 'Guardar tipo' : 'Actualizar tipo' }}</span>
+              }
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (typeToDelete(); as type) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-[2px]"
+      role="presentation"
+      (click)="closeDeleteConfirmation()"
+      (keydown.escape)="closeDeleteConfirmation()"
+    >
+      <section
+        aria-labelledby="type-delete-title"
+        aria-modal="true"
+        class="w-full max-w-md overflow-hidden rounded-lg border border-border bg-surface shadow-modal"
+        role="alertdialog"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="space-y-3 p-6">
+          <h2 class="text-headline-sm font-semibold" id="type-delete-title">Eliminar tipo</h2>
+          <p class="text-body-sm text-text-secondary">
+            ¿Estás seguro de que deseas eliminar el tipo
+            <span class="font-semibold text-neutral">“{{ type.name }}”</span>?
+            Esta acción no se puede deshacer.
+          </p>
+          @if (errorMessage()) {
+            <app-error-alert [message]="errorMessage()" />
+          }
+        </div>
+        <footer class="flex justify-end gap-2 border-t border-border px-6 py-4">
+          <button class="btn btn-secondary btn-compact" type="button" [disabled]="isDeleting()" (click)="closeDeleteConfirmation()">
+            Cancelar
+          </button>
+          <button
+            class="btn btn-destructive btn-compact"
+            type="button"
+            [disabled]="isDeleting()"
+            [attr.aria-busy]="isDeleting()"
+            (click)="deleteType()"
+          >
+            {{ isDeleting() ? 'Eliminando...' : 'Eliminar tipo' }}
+          </button>
+        </footer>
+      </section>
+    </div>
+  }
+
+  @if (toastMessage(); as toast) {
+    <div class="fixed bottom-6 right-6 z-[60]">
+      <app-feedback-toast
+        [title]="toast.title"
+        [message]="toast.message"
+        (dismissed)="dismissToast()"
+      />
+    </div>
+  }
+</main>

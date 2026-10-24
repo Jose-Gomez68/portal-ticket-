@@ -1,0 +1,28 @@
+:host {
+  display: block;
+}
+
+.type-view {
+  min-height: calc(100vh - 3.5rem);
+}
+
+@supports (min-height: 100dvh) {
+  .type-view {
+    min-height: calc(100dvh - 3.5rem);
+  }
+}
+
+.type-loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: type-spinner-rotation 0.7s linear infinite;
+}
+
+@keyframes type-spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
