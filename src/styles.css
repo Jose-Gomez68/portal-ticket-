@@ -188,3 +188,42 @@
     min-height: 2.25rem;
   }
 }
+
+.ticket-rich-text ul {
+  list-style: disc outside;
+  margin-block: 0.25rem;
+  padding-inline-start: 1.5rem;
+}
+
+.ticket-rich-text ol {
+  list-style: decimal outside;
+  margin-block: 0.25rem;
+  padding-inline-start: 1.5rem;
+}
+
+.ticket-rich-text ul ul {
+  list-style-type: circle;
+}
+
+.ticket-rich-text ul ul ul {
+  list-style-type: square;
+}
+
+.ticket-rich-text ol ol {
+  list-style-type: lower-alpha;
+}
+
+.ticket-rich-text li {
+  display: list-item;
+  min-height: 1em;
+}
+
+.ticket-rich-text blockquote {
+  margin-block: 0;
+  margin-inline: 1.5rem;
+}
+
+.ticket-rich-text p,
+.ticket-rich-text div {
+  min-height: 1em;
+}

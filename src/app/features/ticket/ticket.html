@@ -1,0 +1,528 @@
+<main class="ticket-view bg-surface-container-low text-neutral" (click)="closeActionsMenu()">
+  <header class="border-b border-outline-variant bg-surface px-4 py-5 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-[1600px]">
+      @if (errorMessage()) {
+        <app-error-alert [message]="errorMessage()" />
+      }
+
+      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-headline-lg font-semibold tracking-tight">Tickets</h1>
+            <span class="rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-label-sm text-primary">
+              {{ activeCount() }} activos
+            </span>
+          </div>
+          <p class="mt-1 text-body-sm text-text-secondary">
+            Administra y da seguimiento a las incidencias registradas.
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <button class="btn btn-secondary" type="button" (click)="exportTickets()">
+            <span aria-hidden="true">↓</span>
+            Exportar página (CSV)
+          </button>
+          <button class="btn btn-primary" type="button" (click)="openCreateModal()">
+            <span aria-hidden="true" class="text-lg leading-none">+</span>
+            Nuevo ticket
+          </button>
+        </div>
+      </div>
+
+      <section class="mt-5 grid grid-cols-1 gap-3 border-t border-outline-variant pt-4 sm:grid-cols-2 lg:grid-cols-6" aria-label="Filtros de tickets">
+        <label class="sm:col-span-2 lg:col-span-2">
+          <span class="mb-1 block text-label-sm text-text-secondary">Búsqueda rápida</span>
+          <input
+            aria-label="Buscar tickets"
+            class="ticket-control w-full"
+            type="search"
+            placeholder="Título, ID o descripción..."
+            [value]="searchTerm()"
+            (input)="updateSearch($event)"
+          >
+        </label>
+
+        <label>
+          <span class="mb-1 block text-label-sm text-text-secondary">Proyecto</span>
+          <select class="ticket-control w-full" [value]="selectedProjectID()" (change)="updateFilter('project', $event)">
+            <option value="">Todos</option>
+            @for (project of projects(); track project.projectID) {
+              <option [value]="project.projectID">{{ project.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          <span class="mb-1 block text-label-sm text-text-secondary">Categoría</span>
+          <select class="ticket-control w-full" [value]="selectedKindID()" (change)="updateFilter('kind', $event)">
+            <option value="">Todas</option>
+            @for (kind of kinds(); track kind.kindID) {
+              <option [value]="kind.kindID">{{ kind.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          <span class="mb-1 block text-label-sm text-text-secondary">Área</span>
+          <select class="ticket-control w-full" [value]="selectedAreaID()" (change)="updateFilter('area', $event)">
+            <option value="">Todas</option>
+            @for (area of areas(); track area.areaID) {
+              <option [value]="area.areaID">{{ area.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          <span class="mb-1 block text-label-sm text-text-secondary">Estado</span>
+          <select class="ticket-control w-full" [value]="selectedStatusID()" (change)="updateFilter('status', $event)">
+            <option value="">Todos</option>
+            @for (status of statuses(); track status.statusID) {
+              <option [value]="status.statusID">{{ status.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          <span class="mb-1 block text-label-sm text-text-secondary">Prioridad</span>
+          <select class="ticket-control w-full" [value]="selectedPriorityID()" (change)="updateFilter('priority', $event)">
+            <option value="">Todas</option>
+            @for (priority of priorities(); track priority.priorityID) {
+              <option [value]="priority.priorityID">{{ priority.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          <span class="mb-1 block truncate text-label-sm text-text-secondary">Fecha inicial</span>
+          <input class="ticket-control w-full" type="date" [value]="startDate()" (change)="updateFilter('startDate', $event)">
+        </label>
+
+        <label>
+          <span class="mb-1 block truncate text-label-sm text-text-secondary">Fecha final</span>
+          <input class="ticket-control w-full" type="date" [value]="endDate()" (change)="updateFilter('endDate', $event)">
+        </label>
+
+        <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-2">
+          <button class="btn btn-primary btn-compact flex-1" type="button" (click)="applyFilters()">
+            Aplicar filtros
+          </button>
+          <button class="btn btn-secondary btn-compact flex-1" type="button" (click)="clearFilters()">
+            Limpiar
+          </button>
+        </div>
+      </section>
+
+      @if (catalogError()) {
+        <p class="mt-3 text-body-sm text-destructive" role="alert">{{ catalogError() }}</p>
+      }
+      <p class="mt-2 text-label-sm text-text-muted">
+        Los filtros se aplican a los tickets de la página cargada.
+      </p>
+    </div>
+  </header>
+
+  <section class="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8" aria-label="Tabla de tickets">
+    <div class="overflow-hidden rounded-panel border border-outline-variant bg-surface shadow-panel">
+      @if (isLoading()) {
+        <div class="px-6 py-16 text-center" aria-live="polite">
+          <span class="ticket-loading-spinner mx-auto block text-primary" aria-hidden="true"></span>
+          <p class="mt-3 text-body-sm text-text-muted">Cargando tickets...</p>
+        </div>
+      } @else if (filteredTickets().length === 0) {
+        <div class="px-6 py-16 text-center">
+          <h2 class="text-headline-sm font-semibold">No se encontraron tickets</h2>
+          <p class="mt-1 text-body-sm text-text-muted">
+            Prueba con otros filtros o registra un ticket nuevo.
+          </p>
+        </div>
+      } @else {
+        <div class="space-y-3 p-3 md:hidden">
+          @for (ticket of filteredTickets(); track ticket.ticketID) {
+            <article class="rounded-panel border border-border bg-surface p-4 shadow-panel">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <span class="font-mono text-code-sm font-semibold text-primary">{{ ticketCode(ticket.ticketID) }}</span>
+                  <button class="mt-1 block w-full truncate text-left text-headline-sm font-semibold hover:text-primary" type="button" (click)="viewTicket(ticket)">
+                    {{ ticket.title }}
+                  </button>
+                </div>
+                <button class="btn btn-secondary btn-compact shrink-0 px-2" type="button" (click)="editTicket(ticket)">
+                  Editar
+                </button>
+              </div>
+              <p class="mt-2 line-clamp-2 text-body-sm text-text-secondary">
+                {{ descriptionPreview(ticket.description) }}
+              </p>
+              <div class="mt-3 flex flex-wrap gap-2 text-label-sm">
+                <span class="rounded-full border border-outline-variant bg-surface-container-high px-2 py-0.5 text-text-secondary">
+                  {{ ticket.project?.name || 'Sin proyecto' }}
+                </span>
+                @if (ticket.priorityID; as priority) {
+                  <span class="rounded-full border px-2 py-0.5" [style.backgroundColor]="priority.backgroundColor" [style.borderColor]="priority.dotColor" [style.color]="priority.dotColor">
+                    {{ priority.name }}
+                  </span>
+                }
+                @if (ticket.statusID; as status) {
+                  <span class="rounded-full border px-2 py-0.5" [style.backgroundColor]="status.backgroundColor" [style.borderColor]="status.dotColor" [style.color]="status.dotColor">
+                    {{ status.name }}
+                  </span>
+                }
+              </div>
+              <div class="mt-3 flex items-center justify-between border-t border-border pt-3 text-label-sm text-text-muted">
+                <span>{{ getUserName(ticket.assignedID) }}</span>
+                <span>{{ ticket.createdDate ? (ticket.createdDate | date:'dd MMM, HH:mm') : '—' }}</span>
+              </div>
+              <div class="mt-3 flex justify-end gap-2">
+                <button class="btn btn-secondary btn-compact" type="button" (click)="viewTicket(ticket)">Ver detalle</button>
+                <button class="btn btn-ghost btn-compact" type="button" (click)="openDeleteConfirmation(ticket)">Eliminar</button>
+              </div>
+            </article>
+          }
+        </div>
+        <div class="hidden overflow-x-auto md:block">
+          <table class="w-full min-w-[1250px] border-collapse text-left">
+            <thead class="border-b border-outline-variant bg-surface-container-low text-label-sm text-text-secondary">
+              <tr>
+                <th class="px-4 py-3" scope="col">ID</th>
+                <th class="min-w-64 px-4 py-3" scope="col">Título de incidencia</th>
+                <th class="px-3 py-3" scope="col">Proyecto</th>
+                <th class="px-3 py-3" scope="col">Categoría</th>
+                <th class="px-3 py-3" scope="col">Área</th>
+                <th class="px-3 py-3" scope="col">Creado por</th>
+                <th class="px-3 py-3" scope="col">Responsable</th>
+                <th class="px-3 py-3" scope="col">Prioridad</th>
+                <th class="px-3 py-3" scope="col">Estado</th>
+                <th class="px-3 py-3" scope="col">Fecha de creación</th>
+                <th class="px-3 py-3" scope="col">Última act.</th>
+                <th class="px-3 py-3 text-right" scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border text-body-sm">
+              @for (ticket of filteredTickets(); track ticket.ticketID) {
+                <tr class="border-l-2 border-transparent transition-colors hover:border-primary hover:bg-surface-container-low">
+                  <td class="whitespace-nowrap px-4 py-3.5">
+                    <span class="font-mono text-code-sm font-semibold text-primary">{{ ticketCode(ticket.ticketID) }}</span>
+                  </td>
+                  <td class="max-w-80 px-4 py-3.5">
+                    <button
+                      class="block max-w-full truncate text-left font-medium text-neutral hover:text-primary"
+                      type="button"
+                      (click)="viewTicket(ticket)"
+                    >
+                      {{ ticket.title }}
+                    </button>
+                    <p class="mt-0.5 max-w-80 truncate text-label-sm text-text-muted">
+                      {{ descriptionPreview(ticket.description) }}
+                    </p>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5">
+                    <span class="rounded-full border border-outline-variant bg-surface-container-high px-2 py-0.5 text-label-sm text-text-secondary">
+                      {{ ticket.project?.name || 'Sin proyecto' }}
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5 text-text-secondary">
+                    {{ ticket.kind?.name || 'Sin categoría' }}
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5 text-text-secondary">
+                    {{ ticket.areaID?.name || 'Sin área' }}
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5 text-text-secondary">
+                    {{ getUserName(ticket.user) }}
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5">
+                    <span class="inline-flex items-center gap-2">
+                      <span class="flex h-6 w-6 items-center justify-center rounded-full border border-outline-variant bg-surface-container-low text-label-sm font-semibold text-primary">
+                        {{ getUserInitials(ticket.assignedID) }}
+                      </span>
+                      {{ getUserName(ticket.assignedID) }}
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5">
+                    @if (ticket.priorityID; as priority) {
+                      <span
+                        class="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-label-sm font-medium"
+                        [style.backgroundColor]="priority.backgroundColor"
+                        [style.borderColor]="priority.dotColor"
+                        [style.color]="priority.dotColor"
+                      >
+                        <span class="h-1.5 w-1.5 rounded-full" [style.backgroundColor]="priority.dotColor"></span>
+                        {{ priority.name }}
+                      </span>
+                    } @else {
+                      <span class="text-text-muted">Sin prioridad</span>
+                    }
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5">
+                    @if (ticket.statusID; as status) {
+                      <span
+                        class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-label-sm font-medium"
+                        [style.backgroundColor]="status.backgroundColor"
+                        [style.borderColor]="status.dotColor"
+                        [style.color]="status.dotColor"
+                      >
+                        <span class="h-1.5 w-1.5 rounded-full" [style.backgroundColor]="status.dotColor"></span>
+                        {{ status.name }}
+                      </span>
+                    } @else {
+                      <span class="text-text-muted">Sin estado</span>
+                    }
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5 text-text-muted">
+                    {{ ticket.createdDate ? (ticket.createdDate | date:'dd MMM, HH:mm') : '—' }}
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5 text-text-muted">
+                    {{ ticket.updatedDate ? (ticket.updatedDate | date:'dd MMM, HH:mm') : '—' }}
+                  </td>
+                  <td class="whitespace-nowrap px-3 py-3.5 text-right">
+                    <div class="relative inline-block text-left" (click)="$event.stopPropagation()">
+                      <button
+                        class="rounded-control p-2 text-text-secondary transition-colors hover:bg-surface-container-high"
+                        type="button"
+                        [attr.aria-label]="'Acciones para ' + ticketCode(ticket.ticketID)"
+                        [attr.aria-expanded]="openActionsMenuTicketID() === ticket.ticketID"
+                        (click)="toggleActionsMenu(ticket.ticketID, $event)"
+                      >
+                        <span aria-hidden="true">⋮</span>
+                      </button>
+                      @if (openActionsMenuTicketID() === ticket.ticketID) {
+                        <div class="absolute right-0 z-20 mt-1 w-40 rounded-control border border-border bg-surface p-1 text-left shadow-popover">
+                          <button class="ticket-menu-item" type="button" (click)="viewTicket(ticket)">Ver detalle</button>
+                          <button class="ticket-menu-item" type="button" (click)="editTicket(ticket)">Editar</button>
+                          <button class="ticket-menu-item ticket-menu-item-danger" type="button" (click)="openDeleteConfirmation(ticket)">Eliminar</button>
+                        </div>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @if (!isLoading()) {
+        <app-pagination
+          [totalItems]="totalItems()"
+          [currentPage]="currentPage()"
+          [pageSize]="pageSize()"
+          itemLabel="tickets"
+          navigationLabel="Paginación de tickets"
+          [embedded]="true"
+          (pageChange)="goToPage($event)"
+          (pageSizeChange)="updatePageSize($event)"
+        />
+      }
+    </div>
+  </section>
+</main>
+
+@if (isModalOpen()) {
+  <div class="fixed inset-0 z-40 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-sm" (click)="closeModal()">
+    <section
+      aria-labelledby="ticket-modal-title"
+      aria-modal="true"
+      class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-panel border border-outline-variant bg-surface shadow-modal"
+      role="dialog"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="flex items-start justify-between gap-4 border-b border-outline-variant bg-surface-container-low px-5 py-4 sm:px-6">
+        <div>
+          <h2 id="ticket-modal-title" class="text-headline-md font-semibold">
+            {{ editingTicketID() === null ? 'Crear nuevo ticket' : 'Editar ticket' }}
+          </h2>
+          <p class="mt-1 text-body-sm text-text-secondary">
+            Completa los datos para registrar la incidencia.
+          </p>
+        </div>
+        <button class="rounded-control p-2 text-text-muted hover:bg-surface-container-high hover:text-neutral" type="button" aria-label="Cerrar" (click)="closeModal()">×</button>
+      </header>
+
+      <div class="custom-scrollbar overflow-y-auto p-5 sm:p-6">
+        @if (catalogError()) {
+          <app-error-alert [message]="catalogError()" />
+        }
+        @if (isCatalogsLoading()) {
+          <p class="mb-4 text-body-sm text-text-muted" aria-live="polite">Cargando opciones...</p>
+        }
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label class="md:col-span-2">
+            <span class="mb-1 block text-label-md font-medium">Título de la incidencia <span class="text-destructive">*</span></span>
+            <input
+              class="ticket-control w-full"
+              type="text"
+              maxlength="100"
+              placeholder="Ej. Error al iniciar sesión"
+              [(ngModel)]="newTicket.title"
+              name="ticketTitle"
+              required
+            >
+          </label>
+
+          <div class="md:col-span-2">
+            <span id="ticket-description-label" class="mb-1 block text-label-md font-medium">Descripción detallada</span>
+            <div class="ticket-editor-toolbar" role="toolbar" aria-label="Formato de descripción">
+              <button type="button" title="Negrita" aria-label="Negrita" [attr.aria-pressed]="isDescriptionFormatActive('bold')" [class.is-active]="isDescriptionFormatActive('bold')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('bold')"><strong>B</strong></button>
+              <button type="button" title="Cursiva" aria-label="Cursiva" [attr.aria-pressed]="isDescriptionFormatActive('italic')" [class.is-active]="isDescriptionFormatActive('italic')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('italic')"><em>I</em></button>
+              <button type="button" title="Subrayado" aria-label="Subrayado" [attr.aria-pressed]="isDescriptionFormatActive('underline')" [class.is-active]="isDescriptionFormatActive('underline')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('underline')"><u>U</u></button>
+              <span class="ticket-editor-divider" aria-hidden="true"></span>
+              <button type="button" title="Lista con viñetas" aria-label="Lista con viñetas" [attr.aria-pressed]="isDescriptionFormatActive('insertUnorderedList')" [class.is-active]="isDescriptionFormatActive('insertUnorderedList')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('insertUnorderedList')">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="6" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="5" cy="18" r="1.5"/><path d="M10 6h9M10 12h9M10 18h9"/></svg>
+              </button>
+              <button type="button" title="Lista numerada" aria-label="Lista numerada" [attr.aria-pressed]="isDescriptionFormatActive('insertOrderedList')" [class.is-active]="isDescriptionFormatActive('insertOrderedList')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('insertOrderedList')">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h2v5M4 10h3M4 13h3l-3 3h3M11 6h9M11 12h9M11 18h9"/></svg>
+              </button>
+              <span class="ticket-editor-divider" aria-hidden="true"></span>
+              <button type="button" title="Disminuir sangría" aria-label="Disminuir sangría" [attr.aria-pressed]="isDescriptionFormatActive('outdent')" [class.is-active]="isDescriptionFormatActive('outdent')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('outdent')">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16M9 9l-3 3 3 3"/></svg>
+              </button>
+              <button type="button" title="Aumentar sangría" aria-label="Aumentar sangría" [attr.aria-pressed]="isDescriptionFormatActive('indent')" [class.is-active]="isDescriptionFormatActive('indent')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('indent')">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16M6 9l3 3-3 3"/></svg>
+              </button>
+              <span class="ticket-editor-divider" aria-hidden="true"></span>
+              <button type="button" title="Alinear a la izquierda" aria-label="Alinear a la izquierda" [attr.aria-pressed]="isDescriptionFormatActive('justifyLeft')" [class.is-active]="isDescriptionFormatActive('justifyLeft')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('justifyLeft')">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M4 9h10M4 13h16M4 17h10M4 21h16"/></svg>
+              </button>
+              <button type="button" title="Centrar" aria-label="Centrar" [attr.aria-pressed]="isDescriptionFormatActive('justifyCenter')" [class.is-active]="isDescriptionFormatActive('justifyCenter')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('justifyCenter')">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M7 9h10M4 13h16M7 17h10M4 21h16"/></svg>
+              </button>
+              <button type="button" title="Alinear a la derecha" aria-label="Alinear a la derecha" [attr.aria-pressed]="isDescriptionFormatActive('justifyRight')" [class.is-active]="isDescriptionFormatActive('justifyRight')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('justifyRight')">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M10 9h10M4 13h16M10 17h10M4 21h16"/></svg>
+              </button>
+              <button type="button" title="Justificar" aria-label="Justificar" [attr.aria-pressed]="isDescriptionFormatActive('justifyFull')" [class.is-active]="isDescriptionFormatActive('justifyFull')" (mousedown)="preserveDescriptionSelection($event)" (click)="formatDescription('justifyFull')">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16M4 9h16M4 13h16M4 17h16M4 21h16"/></svg>
+              </button>
+            </div>
+            <div
+              #descriptionEditor
+              aria-labelledby="ticket-description-label"
+              aria-multiline="true"
+              role="textbox"
+              class="ticket-rich-text ticket-description-editor"
+              contenteditable="true"
+              data-placeholder="Describe el problema y los pasos para reproducirlo..."
+              (input)="updateDescription()"
+              (focus)="prepareDescriptionEditor()"
+              (paste)="pasteDescriptionAsText($event)"
+              (keydown)="handleDescriptionKeydown($event)"
+            ></div>
+            <p class="mt-1 text-label-sm text-text-muted">
+              Usa Tab para insertar espacios. El contenido pegado se agrega como texto sin formato.
+            </p>
+          </div>
+
+          <label>
+            <span class="mb-1 block text-label-md font-medium">Proyecto <span class="text-destructive">*</span></span>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.projectID" name="ticketProject" required>
+              <option [ngValue]="null">Selecciona un proyecto</option>
+              @for (project of projects(); track project.projectID) {
+                <option [ngValue]="project.projectID">{{ project.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span class="mb-1 block text-label-md font-medium">Categoría <span class="text-destructive">*</span></span>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.kindID" name="ticketKind" required>
+              <option [ngValue]="null">Selecciona una categoría</option>
+              @for (kind of kinds(); track kind.kindID) {
+                <option [ngValue]="kind.kindID">{{ kind.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span class="mb-1 block text-label-md font-medium">Área <span class="text-destructive">*</span></span>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.areaID" name="ticketArea" required>
+              <option [ngValue]="null">Selecciona un área</option>
+              @for (area of areas(); track area.areaID) {
+                <option [ngValue]="area.areaID">{{ area.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span class="mb-1 block text-label-md font-medium">Prioridad <span class="text-destructive">*</span></span>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.priorityID" name="ticketPriority" required>
+              <option [ngValue]="null">Selecciona una prioridad</option>
+              @for (priority of priorities(); track priority.priorityID) {
+                <option [ngValue]="priority.priorityID">{{ priority.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span class="mb-1 block text-label-md font-medium">Estado <span class="text-destructive">*</span></span>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.statusID" name="ticketStatus" required>
+              <option [ngValue]="null">Selecciona un estado</option>
+              @for (status of statuses(); track status.statusID) {
+                <option [ngValue]="status.statusID">{{ status.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span class="mb-1 block text-label-md font-medium">Solicitante <span class="text-destructive">*</span></span>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.userID" name="ticketRequester" required>
+              <option [ngValue]="0">Selecciona un solicitante</option>
+              @for (user of users(); track user.userID) {
+                <option [ngValue]="user.userID">{{ user.name }} {{ user.apPaterno }} ({{ user.userName }})</option>
+              }
+            </select>
+          </label>
+
+          <label class="md:col-span-2">
+            <span class="mb-1 block text-label-md font-medium">Responsable asignado</span>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.assignedID" name="ticketAssignee">
+              <option [ngValue]="null">Sin asignar</option>
+              @for (user of users(); track user.userID) {
+                <option [ngValue]="user.userID">{{ user.name }} {{ user.apPaterno }} ({{ user.userName }})</option>
+              }
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <footer class="flex flex-col-reverse gap-2 border-t border-outline-variant bg-surface-container-low px-5 py-3 sm:flex-row sm:justify-end sm:px-6">
+        <button class="btn btn-secondary" type="button" [disabled]="isSaving()" (click)="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" type="button" [disabled]="isSaving() || isCatalogsLoading()" (click)="saveTicket()">
+          {{ isSaving() ? 'Guardando...' : editingTicketID() === null ? 'Guardar y crear ticket' : 'Guardar cambios' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
+@if (ticketToDelete(); as ticket) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-neutral/45 p-4 backdrop-blur-sm" (click)="closeDeleteConfirmation()">
+    <section
+      aria-labelledby="delete-ticket-title"
+      aria-modal="true"
+      class="w-full max-w-md rounded-panel border border-outline-variant bg-surface p-6 shadow-modal"
+      role="dialog"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 id="delete-ticket-title" class="text-headline-md font-semibold">Eliminar ticket</h2>
+      <p class="mt-2 text-body-sm text-text-secondary">
+        ¿Deseas eliminar {{ ticketCode(ticket.ticketID) }} “{{ ticket.title }}”? Esta acción no se puede deshacer.
+      </p>
+      <div class="mt-6 flex justify-end gap-2">
+        <button class="btn btn-secondary" type="button" [disabled]="isDeleting()" (click)="closeDeleteConfirmation()">Cancelar</button>
+        <button class="btn btn-destructive" type="button" [disabled]="isDeleting()" (click)="deleteTicket()">
+          {{ isDeleting() ? 'Eliminando...' : 'Eliminar ticket' }}
+        </button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (toastMessage(); as toast) {
+  <div class="fixed bottom-4 right-4 z-50">
+    <app-feedback-toast
+      [title]="toast.title"
+      [message]="toast.message"
+      (dismissed)="dismissToast()"
+    />
+  </div>
+}

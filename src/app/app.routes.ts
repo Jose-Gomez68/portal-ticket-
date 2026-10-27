@@ -15,6 +15,15 @@ export const routes: Routes = [
       { path: 'area', component: Area },
       { path: 'project', component: Project },
       {
+        path: 'ticket',
+        loadComponent: () => import('./features/ticket/ticket').then((module) => module.Ticket),
+      },
+      {
+        path: 'ticket/:ticketID',
+        loadComponent: () =>
+          import('./features/ticket/detail/ticket-detail').then((module) => module.TicketDetail),
+      },
+      {
         path: 'priority',
         loadComponent: () => import('./features/priority/priority').then((module) => module.Priority),
       },

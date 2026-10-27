@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+
+.ticket-detail-view {
+  min-height: calc(100vh - 3.5rem);
+}
+
+@supports (min-height: 100dvh) {
+  .ticket-detail-view {
+    min-height: calc(100dvh - 3.5rem);
+  }
+}
+
+.detail-loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: detail-spinner-rotation 0.7s linear infinite;
+}
+
+.detail-timeline::before {
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  left: 0.45rem;
+  width: 2px;
+  background-color: var(--color-outline-variant);
+  content: '';
+}
+
+.detail-timeline-node {
+  z-index: 1;
+}
+
+.detail-comment-input {
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+  padding: 0.5rem 0.75rem;
+  color: var(--color-neutral);
+  font-size: var(--text-body-sm);
+  line-height: var(--text-body-sm--line-height);
+}
+
+.detail-comment-input:focus {
+  border-color: var(--color-focus);
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.detail-comment-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+@keyframes detail-spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
