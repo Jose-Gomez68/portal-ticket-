@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { Area } from './features/area/area';
+import { Dashboard } from './features/dashboard/dashboard';
 import { Project } from './features/project/project';
 import { Status } from './features/status/status';
 import { Type } from './features/type/type';
@@ -11,7 +12,8 @@ export const routes: Routes = [
     path: '',
     component: PortalLayout,
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'area' },
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+      { path: 'dashboard', component: Dashboard },
       { path: 'area', component: Area },
       { path: 'project', component: Project },
       {

@@ -1,6 +1,6 @@
 <aside class="flex h-screen w-60 flex-col justify-between border-r border-border bg-surface p-3 shadow-panel">
   <div>
-    <a class="mb-5 flex items-center gap-3 px-2 py-2" routerLink="/area">
+    <a class="mb-5 flex items-center gap-3 px-2 py-2" routerLink="/dashboard">
       <span class="flex h-8 w-8 items-center justify-center rounded-control bg-primary text-lg font-semibold text-white">
         P
       </span>
@@ -16,12 +16,17 @@
     </button>
 
     <nav aria-label="Navegación principal" class="space-y-1">
-      <span class="nav-item" aria-disabled="true">
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="nav-item-active"
+        ariaCurrentWhenActive="page"
+        class="nav-item"
+      >
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
         </svg>
-        <span>Inicio</span>
-      </span>
+        <span>Dashboard</span>
+      </a>
       <a
         routerLink="/ticket"
         routerLinkActive="nav-item-active"

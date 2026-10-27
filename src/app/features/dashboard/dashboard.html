@@ -1,0 +1,168 @@
+<main class="dashboard-view bg-background p-4 text-neutral sm:p-6 lg:p-8">
+  <div class="mx-auto max-w-[1600px] space-y-6">
+    @if (errorMessage()) {
+      <app-error-alert [message]="errorMessage()" />
+    }
+    @if (isLoading()) {
+      <p class="rounded-lg border border-border bg-surface px-4 py-3 text-body-sm text-text-muted shadow-panel" role="status">Cargando datos del dashboard…</p>
+    }
+
+    <section class="flex flex-col gap-4 pb-2 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-headline-lg font-semibold tracking-tight">Dashboard</h1>
+        <p class="mt-1 text-body-sm text-text-muted">
+          Resumen general de incidencias y actividad del sistema
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="btn btn-secondary h-9 gap-2 px-3">
+          <svg aria-hidden="true" class="h-4 w-4 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13H4V6a1 1 0 0 1 1-1Z" /></svg>
+          <span class="sr-only">Filtrar por fecha</span>
+          <select class="cursor-pointer bg-transparent outline-none" [value]="selectedDays()" (change)="updateDateRange($event)">
+            <option [value]="7">Últimos 7 días</option>
+            <option [value]="30">Últimos 30 días</option>
+            <option [value]="90">Últimos 90 días</option>
+            <option [value]="0">Todos los registros</option>
+          </select>
+        </label>
+        <button class="btn btn-secondary h-9 px-3" type="button">Filtros</button>
+        <!-- <a class="btn btn-primary h-9 px-4" routerLink="/ticket">+ Nuevo ticket</a> -->
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7" aria-label="Resumen operativo">
+      @for (metric of metrics(); track metric.label) {
+        <article class="relative flex min-h-36 flex-col justify-between overflow-hidden rounded-lg border border-border bg-surface p-3.5 shadow-panel">
+          <div class="absolute inset-x-0 top-0 h-1" [class]="metric.accent"></div>
+          <div class="flex items-center justify-between gap-2">
+            <span class="truncate text-label-sm font-semibold uppercase tracking-wide text-text-muted">{{ metric.label }}</span>
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-control" [class]="metric.iconClass">
+              @switch (metric.icon) {
+                @case ('pending') { <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h10M7 21h10M8 3v4l4 5-4 5v4m8-18v4l-4 5 4 5v4" /></svg> }
+                @case ('process') { <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg> }
+                @case ('closed') { <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16.5 8" /></svg> }
+                @case ('critical') { <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 2.5 20h19zM12 9v5m0 3v.1" /></svg> }
+                @case ('project') { <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h7l2 2h9v10H3z" /></svg> }
+                @case ('category') { <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z" /></svg> }
+                @case ('users') { <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3" /><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 4.6V20" /></svg> }
+              }
+            </span>
+          </div>
+          <div class="mt-3 flex items-baseline justify-between gap-2">
+            <strong class="text-display text-neutral">{{ metric.value }}</strong>
+            <span class="whitespace-nowrap rounded px-1.5 py-0.5 text-label-sm font-semibold" [class]="metric.iconClass">{{ metric.trend }}</span>
+          </div>
+          <div class="mt-2 flex items-center gap-1.5 text-label-sm text-text-muted">
+            <span class="h-1.5 w-1.5 rounded-full" [class]="metric.accent"></span>
+            <span class="truncate">{{ metric.detail }}</span>
+          </div>
+        </article>
+      }
+    </section>
+
+    <section class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <article class="rounded-lg border border-border bg-surface p-5 shadow-panel">
+        <div class="flex items-center justify-between">
+          <h2 class="text-headline-sm font-semibold">Tickets por estado</h2>
+          <span class="text-label-sm font-semibold text-text-muted">Total: {{ totalTickets() }}</span>
+        </div>
+        <p class="mt-1 text-body-sm text-text-muted">Progreso del ciclo de vida de incidencias</p>
+        <div class="mt-5 space-y-4">
+          @for (status of statusSummaries(); track status.label) {
+            <div>
+              <div class="mb-1.5 flex justify-between gap-3 text-label-md">
+                <span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full" [class]="status.color"></span>{{ status.label }}</span>
+                <span class="font-mono text-code-sm text-text-muted">{{ status.count }} tickets ({{ status.percent }}%)</span>
+              </div>
+              <div class="h-2 overflow-hidden rounded-full bg-surface-muted"><div class="h-full rounded-full" [class]="status.color" [style.width.%]="status.percent"></div></div>
+            </div>
+          }
+        </div>
+        <div class="mt-5 border-t border-border pt-3 text-label-sm text-text-muted">
+          <span>Información obtenida de los estados registrados en el sistema.</span>
+        </div>
+      </article>
+
+      <article class="rounded-lg border border-border bg-surface p-5 shadow-panel">
+        <div class="flex items-center justify-between"><h2 class="text-headline-sm font-semibold">Tickets por prioridad</h2><span class="text-label-sm text-text-muted">Distribución %</span></div>
+        <p class="mt-1 text-body-sm text-text-muted">Carga operativa clasificada por criticidad</p>
+        <div class="mt-4 flex items-center justify-center gap-6">
+          <div class="relative flex h-36 w-36 shrink-0 items-center justify-center">
+            <svg class="h-full w-full -rotate-90" viewBox="0 0 100 100" aria-label="Distribución de prioridades">
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" stroke-width="12" />
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#94a3b8" stroke-dasharray="107.4 238.76" stroke-width="12" />
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#0284c7" stroke-dasharray="83.5 238.76" stroke-dashoffset="-107.4" stroke-width="12" />
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#f97316" stroke-dasharray="35.8 238.76" stroke-dashoffset="-190.9" stroke-width="12" />
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#ba1a1a" stroke-dasharray="12 238.76" stroke-dashoffset="-226.7" stroke-width="12" />
+            </svg>
+            <div class="absolute text-center"><strong class="block text-headline-sm">100%</strong><span class="text-label-sm text-text-muted">Priorizado</span></div>
+          </div>
+          <div class="space-y-2.5 text-body-sm">
+            @for (priority of prioritySummaries(); track priority.label) {
+              <div class="flex w-28 items-center gap-2"><span class="h-3 w-3 rounded-full" [class]="priority.color"></span><span class="flex-1 text-text-secondary">{{ priority.label }}</span><strong>{{ priority.percent }}%</strong></div>
+            }
+          </div>
+        </div>
+        <div class="mt-5 flex items-center justify-between border-t border-border pt-3 text-label-sm text-text-muted">
+          <span>Críticas activas: <strong class="text-destructive">{{ criticalTickets() }} incidencias</strong></span>
+          <button class="font-semibold text-primary" type="button">Ver escalaciones</button>
+        </div>
+      </article>
+
+      <article class="rounded-lg border border-border bg-surface p-5 shadow-panel">
+        <div class="flex items-center justify-between"><h2 class="text-headline-sm font-semibold">Tickets por proyecto</h2><span class="text-label-sm font-semibold text-text-muted">{{ projectSummaries().length }} proyectos</span></div>
+        <p class="mt-1 text-body-sm text-text-muted">Volumen asignado y porcentaje de carga</p>
+        <div class="mt-5 space-y-5">
+          @for (project of projectSummaries(); track project.name) {
+            <div>
+              <div class="mb-1.5 flex items-center justify-between text-label-md">
+                <span class="flex items-center gap-2 font-semibold"><span class="h-2 w-2 rounded-full" [class]="project.color"></span>{{ project.name }}</span>
+                <span><strong class="font-mono text-code-sm">{{ project.count }}</strong> <span class="text-text-muted">({{ project.percent }})</span></span>
+              </div>
+              <div class="h-3 overflow-hidden rounded-full bg-surface-muted p-0.5"><div class="h-full rounded-full" [class]="project.color" [style.width.%]="project.width"></div></div>
+              <div class="mt-1 flex justify-between gap-3 text-label-sm text-text-muted"><span class="truncate">{{ project.description }}</span><span>{{ project.active }} activos</span></div>
+            </div>
+          }
+        </div>
+        <div class="mt-5 flex items-center justify-between border-t border-border pt-3 text-label-sm text-text-muted"><span>Información obtenida de los proyectos activos.</span><a class="font-semibold text-primary" routerLink="/project">Gestionar proyectos</a></div>
+      </article>
+    </section>
+
+    <section class="overflow-hidden rounded-lg border border-border bg-surface shadow-panel" aria-labelledby="recent-tickets-title">
+      <div class="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div class="flex items-center gap-2"><h2 id="recent-tickets-title" class="text-headline-sm font-semibold">Tickets recientes</h2><span class="rounded-full bg-surface-muted px-2 py-0.5 text-label-sm font-semibold text-primary">15 más recientes</span></div>
+          <p class="mt-1 text-body-sm text-text-muted">Incidentes reportados en las últimas horas y en resolución activa</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input class="h-8 w-48 rounded-control border border-border px-3 text-body-sm placeholder:text-text-muted focus:border-focus focus:outline-none focus:ring-2 focus:ring-focus/15" placeholder="Filtrar tickets..." type="search">
+          <button class="btn btn-secondary h-8 px-3" type="button" [disabled]="isLoading()" (click)="exportRecentTickets()">Exportar CSV</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[1100px] border-collapse text-left">
+          <thead><tr class="border-b border-border bg-surface-muted text-label-sm uppercase text-text-muted"><th class="px-4 py-3" scope="col">ID</th><th class="min-w-64 px-4 py-3" scope="col">Título de la incidencia</th><th class="px-4 py-3" scope="col">Proyecto</th><th class="px-4 py-3" scope="col">Categoría</th><th class="px-4 py-3" scope="col">Prioridad</th><th class="px-4 py-3" scope="col">Estado</th><th class="px-4 py-3" scope="col">Responsable</th><th class="px-4 py-3" scope="col">Fecha</th><th class="px-4 py-3 text-right" scope="col">Acciones</th></tr></thead>
+          <tbody class="divide-y divide-border">
+            @for (ticket of recentTickets(); track ticket.id) {
+              <tr class="transition-colors hover:bg-surface-muted">
+                <td class="px-4 py-3"><a class="font-mono text-code-sm font-semibold text-primary" [routerLink]="['/ticket', ticket.id]">#{{ ticket.code }}</a></td>
+                <td class="px-4 py-3"><div class="flex flex-col"><strong class="text-body-sm text-neutral">{{ ticket.title }}</strong><span class="text-label-sm text-text-muted">{{ ticket.description }}</span></div></td>
+                <td class="px-4 py-3"><span class="inline-flex rounded-full border px-2 py-0.5 text-label-sm font-semibold" [class]="ticket.projectClass">{{ ticket.project }}</span></td>
+                <td class="whitespace-nowrap px-4 py-3 text-body-sm text-text-secondary">{{ ticket.category }}</td>
+                <td class="px-4 py-3">
+                  <span class="badge-priority" [class]="priorityBadge(ticket.priority)">{{ ticket.priority }}</span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="badge-status" [class]="statusBadge(ticket.status)">{{ ticket.status }}</span>
+                </td>
+                <td class="px-4 py-3"><div class="flex items-center gap-2"><span class="flex h-7 w-7 items-center justify-center rounded-full text-label-sm font-semibold" [class]="ticket.assigneeClass">{{ ticket.assigneeInitials }}</span><span class="whitespace-nowrap text-body-sm">{{ ticket.assignee }}</span></div></td>
+                <td class="px-4 py-3"><div class="flex flex-col"><span class="whitespace-nowrap text-body-sm">{{ ticket.date }}</span><span class="whitespace-nowrap font-mono text-label-sm" [class]="ticket.slaClass">{{ ticket.sla }}</span></div></td>
+                <td class="px-4 py-3 text-right"><a class="btn-ghost inline-flex h-8 w-8 items-center justify-center rounded-control" [routerLink]="['/ticket', ticket.id]" title="Ver detalle de ticket" aria-label="Ver detalle de ticket"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg></a></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
