@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { Area } from './features/area/area';
 import { Dashboard } from './features/dashboard/dashboard';
+import { Login } from './features/login/login';
 import { Project } from './features/project/project';
 import { Status } from './features/status/status';
 import { Type } from './features/type/type';
@@ -8,6 +9,7 @@ import { User } from './features/user/user';
 import { PortalLayout } from './shared/layout/portal-layout/portal-layout';
 
 export const routes: Routes = [
+  { path: 'login', component: Login },
   {
     path: '',
     component: PortalLayout,

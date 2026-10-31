@@ -1,0 +1,32 @@
+.field-icon {
+  top: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.visibility-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.divider::before {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1px;
+  background-color: var(--color-outline-variant);
+  content: '';
+}
+
+.language-picker select {
+  max-width: 8.5rem;
+}
