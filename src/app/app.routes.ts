@@ -7,12 +7,14 @@ import { Status } from './features/status/status';
 import { Type } from './features/type/type';
 import { User } from './features/user/user';
 import { PortalLayout } from './shared/layout/portal-layout/portal-layout';
+import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
   {
     path: '',
     component: PortalLayout,
+    canActivate: [authGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: 'dashboard', component: Dashboard },

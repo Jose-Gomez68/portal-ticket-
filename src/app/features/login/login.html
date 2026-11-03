@@ -79,13 +79,10 @@
           </div>
         </div>
 
-        <label class="flex cursor-pointer select-none items-center gap-2 text-label-sm text-text-muted">
-          <input class="h-4 w-4 rounded-control border-outline-variant text-primary-container focus:ring-primary-container/30 focus:ring-offset-0" type="checkbox" name="remember" />
-          <span>Recordar sesión</span>
-        </label>
+        <p class="text-label-sm text-text-muted">La sesión se administra de forma segura mediante cookies HttpOnly.</p>
 
-        <button class="btn btn-primary w-full" type="submit" [disabled]="loginForm.invalid">
-          <span>Iniciar Sesión</span>
+        <button class="btn btn-primary w-full" type="submit" [disabled]="loginForm.invalid || isSubmitting">
+          <span>{{ isSubmitting ? 'Iniciando sesión…' : 'Iniciar Sesión' }}</span>
           <svg class="h-[18px] w-[18px]" aria-hidden="true" viewBox="0 0 24 24" fill="none">
             <path d="M5 12h14m-6-6 6 6-6 6" />
           </svg>
@@ -95,11 +92,11 @@
         }
       </form>
 
-      <div class="relative my-5 text-center text-label-sm font-semibold uppercase tracking-wide text-text-muted" aria-label="O continúa con">
+      <!-- <div class="relative my-5 text-center text-label-sm font-semibold uppercase tracking-wide text-text-muted" aria-label="O continúa con">
         <span class="relative bg-surface px-3">O continúa con</span>
-      </div>
+      </div> -->
 
-      <div class="space-y-2.5">
+      <!-- <div class="space-y-2.5">
         <button class="flex min-h-10 w-full items-center justify-center gap-3 rounded-control border border-outline-variant bg-surface px-3.5 py-2.5 text-label-sm font-semibold text-on-surface shadow-panel transition-colors hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary-container/20" type="button">
           <svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 23 23">
             <path d="M1 1h10v10H1z" fill="#f35325" />
@@ -118,7 +115,7 @@
           </svg>
           <span>Acceder con Google Workspace</span>
         </button>
-      </div>
+      </div> -->
 
       <div class="mt-6 border-t border-outline-variant/50 pt-4 text-center text-label-sm text-text-muted">
         <span class="text-outline">¿Problemas con el acceso?</span>
