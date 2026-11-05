@@ -69,5 +69,5 @@ export interface TicketCommentModel {
 export interface NewTicketCommentModel {
   message: string;
   ticket: number;
-  user: number | null;
+  user: number;
 }

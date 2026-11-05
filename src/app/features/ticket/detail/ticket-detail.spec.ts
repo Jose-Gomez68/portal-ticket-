@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
+import { AuthSessionService } from '../../../core/auth/auth-session.service';
 import { TicketService } from '../service/ticket.service';
+import { UserService } from '../../user/service/user.service';
 import { TicketDetail } from './ticket-detail';
 
 describe('TicketDetail', () => {
@@ -21,9 +23,16 @@ describe('TicketDetail', () => {
       areaID: null,
       priorityID: null,
       statusID: null,
-      comments: [],
+      comments: [{
+        commentID: 11,
+        message: 'Estoy revisando el caso.',
+        ticket: 7,
+        user: 15,
+        createdDate: '2026-10-24T10:30:00.000Z',
+        updatedDate: null,
+      }],
     })),
-    createTicketComment: vi.fn((comment: { message: string; ticket: number; user: number | null }) =>
+    createTicketComment: vi.fn((comment: { message: string; ticket: number; user: number }) =>
       of({
         commentID: 12,
         ...comment,
@@ -39,7 +48,44 @@ describe('TicketDetail', () => {
       imports: [TicketDetail],
       providers: [
         { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ ticketID: '7' })) } },
+        {
+          provide: AuthSessionService,
+          useValue: {
+            user: () => ({
+              userID: 9,
+              userName: 'pedro',
+              name: 'Pedro',
+              email: 'pedro@example.test',
+              role: 'ADMIN',
+              areaID: null,
+              areaName: null,
+            }),
+          },
+        },
         { provide: TicketService, useValue: ticketService },
+        {
+          provide: UserService,
+          useValue: {
+            getUserByID: vi.fn((userID: number) => of({
+              userID,
+              userName: userID === 15 ? 'maria' : 'pedro',
+              name: userID === 15 ? 'María' : 'Pedro',
+              apPaterno: userID === 15 ? 'López' : 'Gómez',
+              apMaterno: userID === 15 ? 'Ruiz' : 'López',
+              email: userID === 15 ? 'maria@example.test' : 'pedro@example.test',
+              active: true,
+              role: userID === 15 ? 'AGENT' : 'ADMIN',
+              areaID: userID === 15 ? 1 : null,
+              areaName: userID === 15 ? 'Soporte' : null,
+              createBy: null,
+              createDate: null,
+              updatedBy: null,
+              updatedDate: null,
+              deletedBy: null,
+              deletedDate: null,
+            })),
+          },
+        },
       ],
     }).compileComponents();
 
@@ -56,6 +102,8 @@ describe('TicketDetail', () => {
     expect(compiled.querySelector('h1')?.textContent).toContain('No puedo iniciar sesión');
     expect(compiled.textContent).toContain('#TK-000007');
     expect(compiled.textContent).toContain('La página muestra un error al ingresar.');
+    expect(compiled.textContent).toContain('María López Ruiz');
+    expect(TestBed.inject(UserService).getUserByID).toHaveBeenCalledWith(15);
     expect(compiled.textContent).not.toContain('Evidencias adjuntas');
   });
 
@@ -71,9 +119,32 @@ describe('TicketDetail', () => {
     expect(ticketService.createTicketComment).toHaveBeenCalledWith({
       message: 'Se está revisando el problema.',
       ticket: 7,
-      user: null,
+      user: 9,
     });
     expect(compiled.textContent).toContain('Se está revisando el problema.');
+    expect(compiled.textContent).toContain('Atención');
+    expect(compiled.textContent).toContain('Pedro Gómez López');
+  });
+
+  it('loads the comment author by userID through UserService', () => {
+    const userService = TestBed.inject(UserService);
+    fixture.componentInstance['loadCommentUsers']([{
+      message: 'Estoy revisando el caso.',
+      user: { userID: 15 },
+    }]);
+
+    expect(userService.getUserByID).toHaveBeenCalledWith(15);
+    expect(fixture.componentInstance['commentAuthor']({
+      message: 'Estoy revisando el caso.',
+      user: 15,
+    })).toBe('María López Ruiz');
+  });
+
+  it('does not use the session user as a comment author when comment user data is unresolved', () => {
+    expect(fixture.componentInstance['commentAuthor']({
+      message: 'Comentario sin datos de usuario',
+      user: 9,
+    })).toBe('Usuario #9');
   });
 
   it('renders formatted ticket descriptions as safe rich text', () => {

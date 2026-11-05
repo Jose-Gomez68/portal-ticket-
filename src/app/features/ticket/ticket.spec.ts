@@ -1,23 +1,34 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, type Observable } from 'rxjs';
+import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { AreaService } from '../area/service/area.service';
 import { PriorityService } from '../priority/service/priority.service';
 import { ProjectService } from '../project/service/project.service';
 import { StatusService } from '../status/service/status.service';
 import { KindService } from '../type/service/kind.service';
 import { UserService } from '../user/service/user.service';
+import type { TicketPageModel } from './model/ticket.model';
 import { TicketService } from './service/ticket.service';
 import { Ticket } from './ticket';
 
 describe('Ticket', () => {
   let fixture: ComponentFixture<Ticket>;
+  let sessionUser = {
+    userID: 9,
+    userName: 'pedro',
+    name: 'Pedro',
+    email: 'pedro@example.test',
+    role: 'ADMIN',
+    areaID: null as number | null,
+    areaName: null as string | null,
+  };
   const ticketService = {
-    getAllActiveTickets: vi.fn(() =>
-      of({
+    getAllActiveTickets: vi.fn((page = 0, size = 10): Observable<TicketPageModel> =>
+      of<TicketPageModel>({
         totalItems: 11,
-        page: 0,
-        size: 10,
+        page,
+        size,
         response: [{
           ticketID: 7,
           title: 'No puedo iniciar sesión',
@@ -29,7 +40,16 @@ describe('Ticket', () => {
           user: null,
           assignedID: null,
           project: null,
-          areaID: null,
+          areaID: {
+            areaID: 2,
+            name: 'Soporte',
+            descrip: '',
+            active: true,
+            createdDate: null,
+            createBy: null,
+            updatedDate: null,
+            updatedBy: null,
+          },
           priorityID: null,
           statusID: null,
           comments: [],
@@ -43,6 +63,15 @@ describe('Ticket', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    sessionUser = {
+      userID: 9,
+      userName: 'pedro',
+      name: 'Pedro',
+      email: 'pedro@example.test',
+      role: 'ADMIN',
+      areaID: null,
+      areaName: null,
+    };
     const activeCommands = new Set<string>();
     Object.defineProperty(document, 'execCommand', {
       configurable: true,
@@ -77,6 +106,7 @@ describe('Ticket', () => {
       imports: [Ticket],
       providers: [
         { provide: TicketService, useValue: ticketService },
+        { provide: AuthSessionService, useValue: { user: () => sessionUser } },
         { provide: Router, useValue: router },
         {
           provide: ProjectService,
@@ -118,6 +148,36 @@ describe('Ticket', () => {
 
   it('loads the first page of tickets using the default page size', () => {
     expect(ticketService.getAllActiveTickets).toHaveBeenCalledWith(0, 10);
+  });
+
+  it('loads every page and limits area administrators to tickets in their area', async () => {
+    sessionUser.areaID = 2;
+    const areaTicket = fixture.componentInstance['tickets']()[0];
+    ticketService.getAllActiveTickets.mockReturnValueOnce(of<TicketPageModel>({
+      totalItems: 2,
+      page: 0,
+      size: 100,
+      response: [
+        areaTicket,
+        {
+          ...areaTicket,
+          ticketID: 8,
+          areaID: { ...areaTicket.areaID!, areaID: 3, name: 'Finanzas' },
+        },
+      ],
+    }));
+    fixture.componentInstance['loadTickets']();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(ticketService.getAllActiveTickets).toHaveBeenLastCalledWith(0, 100);
+    expect(fixture.componentInstance['tickets']().map((ticket) => ticket.ticketID)).toEqual([7]);
+    expect(fixture.componentInstance['totalItems']()).toBe(1);
+    expect(fixture.componentInstance['canManageTicket'](fixture.componentInstance['tickets']()[0])).toBe(true);
+    expect(fixture.componentInstance['canManageTicket']({
+      ...areaTicket,
+      areaID: { ...areaTicket.areaID!, areaID: 3, name: 'Finanzas' },
+    })).toBe(false);
   });
 
   it('includes tickets on the selected local end date regardless of their UTC date', () => {

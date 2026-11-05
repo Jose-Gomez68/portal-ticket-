@@ -147,9 +147,11 @@
                     {{ ticket.title }}
                   </button>
                 </div>
-                <button class="btn btn-secondary btn-compact shrink-0 px-2" type="button" (click)="editTicket(ticket)">
-                  Editar
-                </button>
+                @if (canManageTicket(ticket)) {
+                  <button class="btn btn-secondary btn-compact shrink-0 px-2" type="button" (click)="editTicket(ticket)">
+                    Editar
+                  </button>
+                }
               </div>
               <p class="mt-2 line-clamp-2 text-body-sm text-text-secondary">
                 {{ descriptionPreview(ticket.description) }}
@@ -175,7 +177,9 @@
               </div>
               <div class="mt-3 flex justify-end gap-2">
                 <button class="btn btn-secondary btn-compact" type="button" (click)="viewTicket(ticket)">Ver detalle</button>
-                <button class="btn btn-ghost btn-compact" type="button" (click)="openDeleteConfirmation(ticket)">Eliminar</button>
+                @if (canManageTicket(ticket)) {
+                  <button class="btn btn-ghost btn-compact" type="button" (click)="openDeleteConfirmation(ticket)">Eliminar</button>
+                }
               </div>
             </article>
           }
@@ -288,8 +292,10 @@
                       @if (openActionsMenuTicketID() === ticket.ticketID) {
                         <div class="absolute right-0 z-20 mt-1 w-40 rounded-control border border-border bg-surface p-1 text-left shadow-popover">
                           <button class="ticket-menu-item" type="button" (click)="viewTicket(ticket)">Ver detalle</button>
-                          <button class="ticket-menu-item" type="button" (click)="editTicket(ticket)">Editar</button>
-                          <button class="ticket-menu-item ticket-menu-item-danger" type="button" (click)="openDeleteConfirmation(ticket)">Eliminar</button>
+                          @if (canManageTicket(ticket)) {
+                            <button class="ticket-menu-item" type="button" (click)="editTicket(ticket)">Editar</button>
+                            <button class="ticket-menu-item ticket-menu-item-danger" type="button" (click)="openDeleteConfirmation(ticket)">Eliminar</button>
+                          }
                         </div>
                       }
                     </div>
@@ -434,7 +440,7 @@
 
           <label>
             <span class="mb-1 block text-label-md font-medium">Área <span class="text-destructive">*</span></span>
-            <select class="ticket-control w-full" [(ngModel)]="newTicket.areaID" name="ticketArea" required>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.areaID" name="ticketArea" [disabled]="isAreaScopedAdmin()" required>
               <option [ngValue]="null">Selecciona un área</option>
               @for (area of areas(); track area.areaID) {
                 <option [ngValue]="area.areaID">{{ area.name }}</option>
@@ -462,15 +468,12 @@
             </select>
           </label>
 
-          <label>
-            <span class="mb-1 block text-label-md font-medium">Solicitante <span class="text-destructive">*</span></span>
-            <select class="ticket-control w-full" [(ngModel)]="newTicket.userID" name="ticketRequester" required>
-              <option [ngValue]="0">Selecciona un solicitante</option>
-              @for (user of users(); track user.userID) {
-                <option [ngValue]="user.userID">{{ user.name }} {{ user.apPaterno }} ({{ user.userName }})</option>
-              }
-            </select>
-          </label>
+          <div>
+            <span class="mb-1 block text-label-md font-medium">Solicitante</span>
+            <p class="ticket-control w-full" aria-live="polite">
+              {{ getRequesterName(newTicket.userID) }}
+            </p>
+          </div>
 
           <label class="md:col-span-2">
             <span class="mb-1 block text-label-md font-medium">Responsable asignado</span>

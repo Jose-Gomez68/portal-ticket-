@@ -22,6 +22,12 @@ export class UserService {
     );
   }
 
+  getUserByID(userID: number): Observable<UserModel> {
+    return this.api
+      .get<unknown>(`${this.endpoint}/${userID}`)
+      .pipe(map((response) => unwrapData(response, isUserModel)));
+  }
+
   createUser(user: NewUserModel): Observable<UserModel> {
     return this.api.post<unknown>(`${this.endpoint}/createUser`, user).pipe(
       map((response) => unwrapData(response, isUserModel)),

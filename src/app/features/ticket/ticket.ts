@@ -12,7 +12,9 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { forkJoin, type Subscription } from 'rxjs';
+import { forkJoin, of, type Observable, type Subscription } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { ErrorAlert } from '../../shared/ui/error-alert/error-alert';
 import { FeedbackToast } from '../../shared/ui/feedback-toast/feedback-toast';
 import { Pagination } from '../../shared/ui/pagination/pagination';
@@ -36,8 +38,6 @@ import type {
   TicketModel,
   UpdateTicketModel,
 } from './model/ticket.model';
-
-/* TODO QUEDA PENDIENTE QUE OBTENGA EL USUARIO Y EL AREA PARA CREAR EL TICKEY Y EL COMENTARIO PARA QUE ASI SEPA DE QUIEN ES EL TICKET DE QUE LO CREO O QUIEN REVISA */
 
 type DescriptionFormat =
   | 'bold'
@@ -72,6 +72,7 @@ export class Ticket implements OnDestroy, OnInit {
   ];
 
   private readonly ticketService = inject(TicketService);
+  private readonly authSession = inject(AuthSessionService);
   private readonly router = inject(Router);
   private readonly projectService = inject(ProjectService);
   private readonly areaService = inject(AreaService);
@@ -137,7 +138,7 @@ export class Ticket implements OnDestroy, OnInit {
     const startDate = this.startDate();
     const endDate = this.endDate();
 
-    return this.tickets().filter((ticket) => {
+    const filteredTickets = this.tickets().filter((ticket) => {
       const searchableText = [
         ticket.ticketID.toString(),
         ticket.title,
@@ -158,11 +159,22 @@ export class Ticket implements OnDestroy, OnInit {
         (!endDate || (createdDate && createdDate <= endDate))
       );
     });
+    return this.isAreaScopedAdmin()
+      ? filteredTickets.slice(
+          (this.currentPage() - 1) * this.pageSize(),
+          this.currentPage() * this.pageSize(),
+        )
+      : filteredTickets;
   });
 
   protected readonly totalPages = computed(() =>
     Math.max(1, Math.ceil(this.totalItems() / this.pageSize())),
   );
+
+  protected readonly isAreaScopedAdmin = computed(() => {
+    const user = this.authSession.user();
+    return user?.role === 'ADMIN' && user.areaID !== null;
+  });
 
   protected readonly activeCount = computed(() => this.totalItems());
 
@@ -181,6 +193,26 @@ export class Ticket implements OnDestroy, OnInit {
     this.ticketRequest?.unsubscribe();
     this.isLoading.set(true);
     this.errorMessage.set('');
+    const sessionUser = this.authSession.user();
+    if (sessionUser?.role === 'ADMIN' && sessionUser.areaID !== null) {
+      this.ticketRequest = this.loadAllActiveTickets().subscribe({
+        next: (tickets) => {
+          const scopedTickets = tickets.filter(
+            (ticket) => ticket.areaID?.areaID === sessionUser.areaID,
+          );
+          this.tickets.set(scopedTickets);
+          this.totalItems.set(scopedTickets.length);
+          this.currentPage.set(Math.min(this.currentPage(), this.totalPages()));
+          this.isLoading.set(false);
+        },
+        error: (error: unknown) => {
+          this.errorMessage.set(`No se pudieron cargar los tickets: ${getErrorMessage(error)}`);
+          this.isLoading.set(false);
+        },
+      });
+      return;
+    }
+
     this.ticketRequest = this.ticketService
       .getAllActiveTickets(this.currentPage() - 1, this.pageSize())
       .subscribe({
@@ -247,25 +279,33 @@ export class Ticket implements OnDestroy, OnInit {
     this.startDate.set('');
     this.endDate.set('');
     this.currentPage.set(1);
-    this.loadTickets();
+    if (!this.isAreaScopedAdmin()) {
+      this.loadTickets();
+    }
   }
 
   protected applyFilters(): void {
     this.currentPage.set(1);
-    this.loadTickets();
+    if (!this.isAreaScopedAdmin()) {
+      this.loadTickets();
+    }
   }
 
   protected updatePageSize(pageSize: number): void {
     this.pageSize.set(Math.min(100, Math.max(1, pageSize)));
     this.currentPage.set(1);
-    this.loadTickets();
+    if (!this.isAreaScopedAdmin()) {
+      this.loadTickets();
+    }
   }
 
   protected goToPage(page: number): void {
     const nextPage = Math.max(1, Math.min(page, this.totalPages()));
     if (nextPage !== this.currentPage()) {
       this.currentPage.set(nextPage);
-      this.loadTickets();
+      if (!this.isAreaScopedAdmin()) {
+        this.loadTickets();
+      }
     }
   }
 
@@ -359,6 +399,9 @@ export class Ticket implements OnDestroy, OnInit {
 
   protected editTicket(ticket: TicketModel): void {
     this.closeActionsMenu();
+    if (!this.canManageTicket(ticket)) {
+      return;
+    }
     this.editingTicketID.set(ticket.ticketID);
     this.newTicket = {
       title: ticket.title,
@@ -391,7 +434,9 @@ export class Ticket implements OnDestroy, OnInit {
           this.descriptionEditorElement?.innerHTML ?? this.newTicket.description ?? '',
         ).trim() || null,
       kind: this.newTicket.kindID,
-      user: this.newTicket.userID,
+      user: this.editingTicketID() === null
+        ? this.authSession.user()?.userID ?? 0
+        : this.newTicket.userID,
       assignedID: this.newTicket.assignedID,
       project: this.newTicket.projectID,
       areaID: this.newTicket.areaID,
@@ -402,7 +447,7 @@ export class Ticket implements OnDestroy, OnInit {
     if (
       this.isSaving() ||
       !request.title ||
-      !this.newTicket.userID ||
+      !request.user ||
       !this.newTicket.kindID ||
       !this.newTicket.projectID ||
       !this.newTicket.areaID ||
@@ -448,6 +493,9 @@ export class Ticket implements OnDestroy, OnInit {
 
   protected openDeleteConfirmation(ticket: TicketModel): void {
     this.closeActionsMenu();
+    if (!this.canManageTicket(ticket)) {
+      return;
+    }
     this.errorMessage.set('');
     this.ticketToDelete.set(ticket);
   }
@@ -460,7 +508,7 @@ export class Ticket implements OnDestroy, OnInit {
 
   protected deleteTicket(): void {
     const ticket = this.ticketToDelete();
-    if (!ticket || this.isDeleting()) {
+    if (!ticket || this.isDeleting() || !this.canManageTicket(ticket)) {
       return;
     }
 
@@ -518,6 +566,21 @@ export class Ticket implements OnDestroy, OnInit {
 
   protected getUserName(user: UserModel | null): string {
     return user ? `${user.name} ${user.apPaterno}`.trim() : 'Sin asignar';
+  }
+
+  protected getRequesterName(userID: number): string {
+    const user = this.users().find((item) => item.userID === userID);
+    if (user) {
+      return this.getUserName(user);
+    }
+    const sessionUser = this.authSession.user();
+    return sessionUser?.userID === userID ? sessionUser.name : `Usuario #${userID}`;
+  }
+
+  protected canManageTicket(ticket: TicketModel): boolean {
+    const user = this.authSession.user();
+    return user?.role === 'ADMIN' &&
+      (user.areaID === null || ticket.areaID?.areaID === user.areaID);
   }
 
   protected getUserInitials(user: UserModel | null): string {
@@ -589,13 +652,29 @@ export class Ticket implements OnDestroy, OnInit {
       title: '',
       description: '',
       kindID: null,
-      userID: 0,
+      userID: this.authSession.user()?.userID ?? 0,
       assignedID: null,
       projectID: null,
-      areaID: null,
+      areaID: this.authSession.user()?.areaID ?? null,
       priorityID: null,
       statusID: this.getPendingStatusID(),
     };
+  }
+
+  private loadAllActiveTickets(
+    page = 0,
+    size = 100,
+    accumulated: TicketModel[] = [],
+  ): Observable<TicketModel[]> {
+    return this.ticketService.getAllActiveTickets(page, size).pipe(
+      switchMap((result) => {
+        const tickets = [...accumulated, ...result.response];
+        const nextPage = result.page + 1;
+        return nextPage < Math.ceil(result.totalItems / result.size)
+          ? this.loadAllActiveTickets(nextPage, size, tickets)
+          : of(tickets);
+      }),
+    );
   }
 
   private getPendingStatusID(): number | null {

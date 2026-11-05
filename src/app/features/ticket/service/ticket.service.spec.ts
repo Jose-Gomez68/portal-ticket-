@@ -127,7 +127,11 @@ describe('TicketService', () => {
 
     let result: unknown;
     TestBed.inject(TicketService)
-      .createTicketComment({ message: comment.message, ticket: comment.ticket, user: comment.user })
+      .createTicketComment({
+        message: comment.message,
+        ticket: comment.ticket,
+        user: comment.user,
+      })
       .subscribe((createdComment) => {
         result = createdComment;
       });
