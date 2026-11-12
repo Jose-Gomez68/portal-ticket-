@@ -100,28 +100,37 @@
                 </p>
               </div>
             } @else {
-              <div class="detail-timeline relative space-y-4 pl-7">
+              <div class="space-y-3">
                 @for (comment of item.comments; track $index) {
-                  <article class="relative rounded-panel border border-outline-variant/70 bg-surface-container-low p-4">
-                    <span class="detail-timeline-node absolute -left-[2rem] top-4 h-4 w-4 rounded-full border-2 border-primary bg-surface" aria-hidden="true"></span>
-                    <header class="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <div class="flex items-center gap-2">
-                        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-label-sm font-semibold text-primary">
-                          {{ commentAuthor(comment).charAt(0).toLocaleUpperCase() }}
-                        </span>
-                        <span class="text-label-md font-semibold">{{ commentAuthor(comment) }}</span>
-                        <span class="rounded-full bg-primary/10 px-2 py-0.5 text-label-sm font-medium text-primary">
-                          {{ commentRole(comment) }}
-                        </span>
-                      </div>
-                      @if (commentDate(comment); as date) {
-                        <time class="text-label-sm text-text-muted">{{ date | date:'dd MMM yyyy, HH:mm' }}</time>
-                      }
-                    </header>
-                    <p class="whitespace-pre-wrap break-words text-body-md text-text-secondary">
-                      {{ commentText(comment) }}
-                    </p>
-                  </article>
+                  <div
+                    class="detail-chat-row flex"
+                    [class.detail-chat-row-own]="isCurrentUserComment(comment)"
+                    [class.detail-chat-row-other]="!isCurrentUserComment(comment)"
+                  >
+                    <article
+                      class="detail-chat-message border p-4"
+                      [class.detail-chat-message-own]="isCurrentUserComment(comment)"
+                      [class.detail-chat-message-other]="!isCurrentUserComment(comment)"
+                    >
+                      <header class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                          <span class="detail-chat-avatar flex h-8 w-8 items-center justify-center rounded-full text-label-sm font-semibold">
+                            {{ commentAuthor(comment).charAt(0).toLocaleUpperCase() }}
+                          </span>
+                          <span class="text-label-md font-semibold">{{ commentAuthor(comment) }}</span>
+                          <span class="detail-chat-role rounded-full px-2 py-0.5 text-label-sm font-medium">
+                            {{ commentRole(comment) }}
+                          </span>
+                        </div>
+                        @if (commentDate(comment); as date) {
+                          <time class="detail-chat-date text-label-sm">{{ date | date:'dd MMM yyyy, HH:mm' }}</time>
+                        }
+                      </header>
+                      <p class="whitespace-pre-wrap break-words text-body-md">
+                        {{ commentText(comment) }}
+                      </p>
+                    </article>
+                  </div>
                 }
               </div>
             }

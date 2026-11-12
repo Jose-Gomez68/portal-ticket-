@@ -12,8 +12,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { forkJoin, of, type Observable, type Subscription } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { forkJoin, type Subscription } from 'rxjs';
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { ErrorAlert } from '../../shared/ui/error-alert/error-alert';
 import { FeedbackToast } from '../../shared/ui/feedback-toast/feedback-toast';
@@ -159,22 +158,12 @@ export class Ticket implements OnDestroy, OnInit {
         (!endDate || (createdDate && createdDate <= endDate))
       );
     });
-    return this.isAreaScopedAdmin()
-      ? filteredTickets.slice(
-          (this.currentPage() - 1) * this.pageSize(),
-          this.currentPage() * this.pageSize(),
-        )
-      : filteredTickets;
+    return filteredTickets;
   });
 
   protected readonly totalPages = computed(() =>
     Math.max(1, Math.ceil(this.totalItems() / this.pageSize())),
   );
-
-  protected readonly isAreaScopedAdmin = computed(() => {
-    const user = this.authSession.user();
-    return user?.role === 'ADMIN' && user.areaID !== null;
-  });
 
   protected readonly activeCount = computed(() => this.totalItems());
 
@@ -193,26 +182,6 @@ export class Ticket implements OnDestroy, OnInit {
     this.ticketRequest?.unsubscribe();
     this.isLoading.set(true);
     this.errorMessage.set('');
-    const sessionUser = this.authSession.user();
-    if (sessionUser?.role === 'ADMIN' && sessionUser.areaID !== null) {
-      this.ticketRequest = this.loadAllActiveTickets().subscribe({
-        next: (tickets) => {
-          const scopedTickets = tickets.filter(
-            (ticket) => ticket.areaID?.areaID === sessionUser.areaID,
-          );
-          this.tickets.set(scopedTickets);
-          this.totalItems.set(scopedTickets.length);
-          this.currentPage.set(Math.min(this.currentPage(), this.totalPages()));
-          this.isLoading.set(false);
-        },
-        error: (error: unknown) => {
-          this.errorMessage.set(`No se pudieron cargar los tickets: ${getErrorMessage(error)}`);
-          this.isLoading.set(false);
-        },
-      });
-      return;
-    }
-
     this.ticketRequest = this.ticketService
       .getAllActiveTickets(this.currentPage() - 1, this.pageSize())
       .subscribe({
@@ -279,33 +248,25 @@ export class Ticket implements OnDestroy, OnInit {
     this.startDate.set('');
     this.endDate.set('');
     this.currentPage.set(1);
-    if (!this.isAreaScopedAdmin()) {
-      this.loadTickets();
-    }
+    this.loadTickets();
   }
 
   protected applyFilters(): void {
     this.currentPage.set(1);
-    if (!this.isAreaScopedAdmin()) {
-      this.loadTickets();
-    }
+    this.loadTickets();
   }
 
   protected updatePageSize(pageSize: number): void {
     this.pageSize.set(Math.min(100, Math.max(1, pageSize)));
     this.currentPage.set(1);
-    if (!this.isAreaScopedAdmin()) {
-      this.loadTickets();
-    }
+    this.loadTickets();
   }
 
   protected goToPage(page: number): void {
     const nextPage = Math.max(1, Math.min(page, this.totalPages()));
     if (nextPage !== this.currentPage()) {
       this.currentPage.set(nextPage);
-      if (!this.isAreaScopedAdmin()) {
-        this.loadTickets();
-      }
+      this.loadTickets();
     }
   }
 
@@ -659,22 +620,6 @@ export class Ticket implements OnDestroy, OnInit {
       priorityID: null,
       statusID: this.getPendingStatusID(),
     };
-  }
-
-  private loadAllActiveTickets(
-    page = 0,
-    size = 100,
-    accumulated: TicketModel[] = [],
-  ): Observable<TicketModel[]> {
-    return this.ticketService.getAllActiveTickets(page, size).pipe(
-      switchMap((result) => {
-        const tickets = [...accumulated, ...result.response];
-        const nextPage = result.page + 1;
-        return nextPage < Math.ceil(result.totalItems / result.size)
-          ? this.loadAllActiveTickets(nextPage, size, tickets)
-          : of(tickets);
-      }),
-    );
   }
 
   private getPendingStatusID(): number | null {

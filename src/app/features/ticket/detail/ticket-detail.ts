@@ -25,6 +25,7 @@ export class TicketDetail implements OnDestroy, OnInit {
   private readonly userService = inject(UserService);
   private routeSubscription: Subscription | null = null;
   private ticketRequest: Subscription | null = null;
+  private ticketUpdateRequest: Subscription | null = null;
   private commentRequest: Subscription | null = null;
   private userRequest: Subscription | null = null;
 
@@ -54,6 +55,7 @@ export class TicketDetail implements OnDestroy, OnInit {
   ngOnDestroy(): void {
     this.routeSubscription?.unsubscribe();
     this.ticketRequest?.unsubscribe();
+    this.ticketUpdateRequest?.unsubscribe();
     this.commentRequest?.unsubscribe();
     this.userRequest?.unsubscribe();
   }
@@ -140,6 +142,11 @@ export class TicketDetail implements OnDestroy, OnInit {
     return 'Atención';
   }
 
+  protected isCurrentUserComment(comment: unknown): boolean {
+    const userID = this.authSession.user()?.userID;
+    return userID !== undefined && getCommentUserID(comment) === userID;
+  }
+
   protected canComment(ticket: TicketModel): boolean {
     const user = this.authSession.user();
     if (!user) {
@@ -176,6 +183,7 @@ export class TicketDetail implements OnDestroy, OnInit {
 
     this.commentError.set('');
     this.isSubmittingComment.set(true);
+    const updatedDate = new Date().toISOString();
     this.commentRequest = this.ticketService
       .createTicketComment({
         message,
@@ -184,12 +192,53 @@ export class TicketDetail implements OnDestroy, OnInit {
       })
       .subscribe({
         next: (comment) => {
-          this.ticket.update((current) =>
-            current ? { ...current, comments: [...current.comments, comment] } : current,
-          );
+
+          console.log('Comentario agregado:', comment);
+
+          this.ticket.update((current) => {
+            if (!current) {
+              return current;
+            }
+            return {
+              ...current,
+              comments: [...current.comments, comment],
+            };
+          });
           this.loadCommentUsers([comment]);
           this.commentDraft.set('');
-          this.isSubmittingComment.set(false);
+          this.ticketUpdateRequest = this.ticketService
+            .updateTicket({
+              ticketID: ticket.ticketID,
+              title: ticket.title,
+              description: ticket.description,
+              kind: ticket.kind?.kindID ?? null,
+              user: ticket.user?.userID ?? null,
+              assignedID: ticket.assignedID?.userID ?? null,
+              project: ticket.project?.projectID ?? null,
+              areaID: ticket.areaID?.areaID ?? null,
+              priorityID: ticket.priorityID?.priorityID ?? null,
+              statusID: ticket.statusID?.statusID ?? null,
+              updatedDate,
+            })
+            .subscribe({
+              next: (updatedTicket) => {
+                this.ticket.update((current) =>
+                  current
+                    ? {
+                        ...current,
+                        updatedDate: updatedTicket.updatedDate ?? updatedDate,
+                      }
+                    : current,
+                );
+                this.isSubmittingComment.set(false);
+              },
+              error: (error: unknown) => {
+                this.commentError.set(
+                  `El comentario se agregó, pero no se pudo actualizar la fecha del ticket: ${getErrorMessage(error)}`,
+                );
+                this.isSubmittingComment.set(false);
+              },
+            });
         },
         error: (error: unknown) => {
           this.commentError.set(`No se pudo agregar el comentario: ${getErrorMessage(error)}`);
@@ -200,6 +249,7 @@ export class TicketDetail implements OnDestroy, OnInit {
 
   private loadTicket(ticketID: number): void {
     this.ticketRequest?.unsubscribe();
+    this.ticketUpdateRequest?.unsubscribe();
     this.commentRequest?.unsubscribe();
     this.isSubmittingComment.set(false);
     this.isLoading.set(true);
@@ -207,16 +257,6 @@ export class TicketDetail implements OnDestroy, OnInit {
     this.ticket.set(null);
     this.ticketRequest = this.ticketService.getTicketByID(ticketID).subscribe({
       next: (ticket) => {
-        const user = this.authSession.user();
-        if (
-          user?.role === 'ADMIN' &&
-          user.areaID !== null &&
-          ticket.areaID?.areaID !== user.areaID
-        ) {
-          this.errorMessage.set('No tienes acceso a los tickets de otra área.');
-          this.isLoading.set(false);
-          return;
-        }
         this.ticket.set(ticket);
         console.log('Comentarios recibidos en detalle:', ticket.comments);
         this.loadCommentUsers(ticket.comments);

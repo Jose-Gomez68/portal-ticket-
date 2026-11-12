@@ -21,18 +21,52 @@
   animation: detail-spinner-rotation 0.7s linear infinite;
 }
 
-.detail-timeline::before {
-  position: absolute;
-  top: 0.5rem;
-  bottom: 0.5rem;
-  left: 0.45rem;
-  width: 2px;
-  background-color: var(--color-outline-variant);
-  content: '';
+.detail-chat-row-own {
+  justify-content: flex-start;
 }
 
-.detail-timeline-node {
-  z-index: 1;
+.detail-chat-row-other {
+  justify-content: flex-end;
+}
+
+.detail-chat-message {
+  width: fit-content;
+  max-width: min(85%, 42rem);
+  border-radius: 1rem;
+}
+
+.detail-chat-message-own {
+  border-color: var(--color-primary);
+  border-bottom-left-radius: 0.25rem;
+  background-color: var(--color-primary);
+  color: var(--color-on-primary, #ffffff);
+}
+
+.detail-chat-message-other {
+  border-color: var(--color-outline-variant);
+  border-bottom-right-radius: 0.25rem;
+  background-color: var(--color-surface-container-low);
+  color: var(--color-neutral);
+}
+
+.detail-chat-message-own .detail-chat-avatar,
+.detail-chat-message-own .detail-chat-role {
+  background-color: rgb(255 255 255 / 20%);
+  color: inherit;
+}
+
+.detail-chat-message-other .detail-chat-avatar,
+.detail-chat-message-other .detail-chat-role {
+  background-color: var(--color-primary);
+  color: var(--color-on-primary, #ffffff);
+}
+
+.detail-chat-message-own .detail-chat-date {
+  color: rgb(255 255 255 / 80%);
+}
+
+.detail-chat-message-other .detail-chat-date {
+  color: var(--color-text-muted);
 }
 
 .detail-comment-input {

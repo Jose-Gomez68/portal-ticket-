@@ -112,7 +112,21 @@ describe('Ticket', () => {
           provide: ProjectService,
           useValue: { getAllProjects: () => of({ totalItems: 0, page: 0, size: 100, response: [] }) },
         },
-        { provide: AreaService, useValue: { getAll: () => of([]) } },
+        {
+          provide: AreaService,
+          useValue: {
+            getAll: () => of([{
+              areaID: 2,
+              name: 'Soporte',
+              descrip: '',
+              active: true,
+              createdDate: null,
+              createBy: null,
+              updatedDate: null,
+              updatedBy: null,
+            }]),
+          },
+        },
         { provide: KindService, useValue: { getAllKinds: () => of([]) } },
         { provide: PriorityService, useValue: { getAllPriorities: () => of([]) } },
         {
@@ -150,13 +164,13 @@ describe('Ticket', () => {
     expect(ticketService.getAllActiveTickets).toHaveBeenCalledWith(0, 10);
   });
 
-  it('loads every page and limits area administrators to tickets in their area', async () => {
+  it('loads tickets from all areas for area-assigned administrators', async () => {
     sessionUser.areaID = 2;
     const areaTicket = fixture.componentInstance['tickets']()[0];
     ticketService.getAllActiveTickets.mockReturnValueOnce(of<TicketPageModel>({
       totalItems: 2,
       page: 0,
-      size: 100,
+      size: 10,
       response: [
         areaTicket,
         {
@@ -170,9 +184,9 @@ describe('Ticket', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(ticketService.getAllActiveTickets).toHaveBeenLastCalledWith(0, 100);
-    expect(fixture.componentInstance['tickets']().map((ticket) => ticket.ticketID)).toEqual([7]);
-    expect(fixture.componentInstance['totalItems']()).toBe(1);
+    expect(ticketService.getAllActiveTickets).toHaveBeenLastCalledWith(0, 10);
+    expect(fixture.componentInstance['tickets']().map((ticket) => ticket.ticketID)).toEqual([7, 8]);
+    expect(fixture.componentInstance['totalItems']()).toBe(2);
     expect(fixture.componentInstance['canManageTicket'](fixture.componentInstance['tickets']()[0])).toBe(true);
     expect(fixture.componentInstance['canManageTicket']({
       ...areaTicket,
@@ -234,6 +248,20 @@ describe('Ticket', () => {
     fixture.componentInstance['openCreateModal']();
 
     expect(fixture.componentInstance['newTicket'].statusID).toBe(3);
+  });
+
+  it('allows selecting any area and defaults to the session user area when creating a ticket', async () => {
+    sessionUser.areaID = 2;
+    fixture.componentInstance['openCreateModal']();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const areaSelect = fixture.nativeElement.querySelector(
+      'select[name="ticketArea"]',
+    ) as HTMLSelectElement;
+    expect(areaSelect.disabled).toBe(false);
+    expect(areaSelect.selectedOptions[0]?.textContent?.trim()).toBe('Soporte');
+    expect(fixture.componentInstance['newTicket'].areaID).toBe(2);
   });
 
   it('defaults an unassigned ticket status to Pendiente when editing', () => {

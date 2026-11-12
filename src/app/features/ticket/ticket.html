@@ -440,7 +440,7 @@
 
           <label>
             <span class="mb-1 block text-label-md font-medium">Área <span class="text-destructive">*</span></span>
-            <select class="ticket-control w-full" [(ngModel)]="newTicket.areaID" name="ticketArea" [disabled]="isAreaScopedAdmin()" required>
+            <select class="ticket-control w-full" [(ngModel)]="newTicket.areaID" name="ticketArea" required>
               <option [ngValue]="null">Selecciona un área</option>
               @for (area of areas(); track area.areaID) {
                 <option [ngValue]="area.areaID">{{ area.name }}</option>

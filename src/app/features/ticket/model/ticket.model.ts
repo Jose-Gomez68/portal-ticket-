@@ -53,8 +53,10 @@ export interface NewTicketModel {
   statusID: number | null;
 }
 
-export interface UpdateTicketModel extends NewTicketModel {
+export interface UpdateTicketModel extends Omit<NewTicketModel, 'user'> {
   ticketID: number;
+  user: number | null;
+  updatedDate?: string;
 }
 
 export interface TicketCommentModel {

@@ -40,6 +40,24 @@ describe('TicketDetail', () => {
         updatedDate: null,
       }),
     ),
+    updateTicket: vi.fn((ticket: { ticketID: number; updatedDate: string }) =>
+      of({
+        ticketID: ticket.ticketID,
+        title: 'No puedo iniciar sesión',
+        description: 'La página muestra un error al ingresar.',
+        active: true,
+        createdDate: '2026-10-24T10:00:00.000Z',
+        updatedDate: ticket.updatedDate,
+        kind: null,
+        user: null,
+        assignedID: null,
+        project: null,
+        areaID: null,
+        priorityID: null,
+        statusID: null,
+        comments: [],
+      }),
+    ),
   };
 
   beforeEach(async () => {
@@ -121,9 +139,22 @@ describe('TicketDetail', () => {
       ticket: 7,
       user: 9,
     });
+    expect(ticketService.updateTicket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ticketID: 7,
+        title: 'No puedo iniciar sesión',
+        user: null,
+      }),
+    );
+    const updatePayload = ticketService.updateTicket.mock.calls[0][0];
+    expect(new Date(updatePayload.updatedDate).toISOString()).toBe(updatePayload.updatedDate);
     expect(compiled.textContent).toContain('Se está revisando el problema.');
     expect(compiled.textContent).toContain('Atención');
     expect(compiled.textContent).toContain('Pedro Gómez López');
+    expect(fixture.componentInstance['ticket']()?.updatedDate).toBe(updatePayload.updatedDate);
+    const commentRows = compiled.querySelectorAll('.detail-chat-row');
+    expect(commentRows[0].classList.contains('detail-chat-row-other')).toBe(true);
+    expect(commentRows[1].classList.contains('detail-chat-row-own')).toBe(true);
   });
 
   it('loads the comment author by userID through UserService', () => {
