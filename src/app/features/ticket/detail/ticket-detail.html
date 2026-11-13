@@ -140,6 +140,11 @@
               </p>
             }
             @if (canComment(item)) {
+              @if (isTicketRequester(item) && isResolvedTicket(item)) {
+                <p class="mt-4 rounded-control border border-outline-variant bg-surface-container-low p-3 text-label-sm text-text-secondary">
+                  Si el problema persiste, descríbelo en un comentario para solicitar que el equipo reabra el ticket.
+                </p>
+              }
               <form class="mt-5 space-y-3 border-t border-outline-variant/60 pt-4" (ngSubmit)="addComment()">
                 <label class="block">
                   <span class="mb-1 block text-label-md font-medium">Agregar comentario</span>
@@ -237,6 +242,46 @@
             </dl>
           </section>
 
+          @if (canChangeStatus(item)) {
+            <section class="space-y-3 rounded-panel border border-outline-variant bg-surface p-5 shadow-panel">
+              <h2 class="text-headline-sm font-semibold">Actualizar estado</h2>
+              <p class="text-label-sm text-text-muted">
+                Actualiza el progreso desde aquí. La asignación del responsable se administra desde la edición del ticket.
+              </p>
+              @if (statusError()) {
+                <p class="text-body-sm text-destructive" role="alert">{{ statusError() }}</p>
+              }
+              @if (isLoadingStatuses()) {
+                <p class="text-label-sm text-text-muted" aria-live="polite">Cargando estados...</p>
+              }
+              <label class="block">
+                <span class="mb-1 block text-label-md font-medium">Estado</span>
+                <select
+                  class="detail-comment-input w-full"
+                  [ngModel]="selectedStatusID()"
+                  (ngModelChange)="selectedStatusID.set($event)"
+                  [disabled]="isLoadingStatuses() || isUpdatingStatus()"
+                  name="ticketStatus"
+                >
+                  <option [ngValue]="null">Selecciona un estado</option>
+                  @for (status of statuses(); track status.statusID) {
+                    <option [ngValue]="status.statusID">{{ status.name }}</option>
+                  }
+                </select>
+              </label>
+              <div class="flex justify-end">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  [disabled]="isLoadingStatuses() || isUpdatingStatus() || selectedStatusID() === item.statusID?.statusID || selectedStatusID() === null"
+                  (click)="changeStatus()"
+                >
+                  {{ isUpdatingStatus() ? 'Actualizando...' : 'Guardar estado' }}
+                </button>
+              </div>
+            </section>
+          }
+
           <section class="rounded-panel border border-outline-variant bg-surface p-5 shadow-panel">
             <h2 class="text-headline-sm font-semibold">Resumen</h2>
             <div class="mt-4 space-y-3">
@@ -256,7 +301,7 @@
               </div>
               <div class="flex items-center justify-between gap-3 border-t border-outline-variant/40 pt-3 text-body-sm">
                 <span class="text-text-muted">Fecha de creación</span>
-                <span class="text-right font-medium">{{ item.createdDate ? (item.createdDate | date:'dd MMM yyyy') : '—' }}</span>
+                <span class="text-right font-medium">{{ item.createdDate ? (item.createdDate | date:'dd MMM yyyy, HH:mm') : '—' }}</span>
               </div>
             </div>
           </section>

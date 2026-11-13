@@ -177,6 +177,9 @@
               </div>
               <div class="mt-3 flex justify-end gap-2">
                 <button class="btn btn-secondary btn-compact" type="button" (click)="viewTicket(ticket)">Ver detalle</button>
+                @if (canEditTicket(ticket)) {
+                  <button class="btn btn-secondary btn-compact" type="button" (click)="editTicket(ticket)">Editar</button>
+                }
                 @if (canManageTicket(ticket)) {
                   <button class="btn btn-ghost btn-compact" type="button" (click)="openDeleteConfirmation(ticket)">Eliminar</button>
                 }
@@ -292,8 +295,10 @@
                       @if (openActionsMenuTicketID() === ticket.ticketID) {
                         <div class="absolute right-0 z-20 mt-1 w-40 rounded-control border border-border bg-surface p-1 text-left shadow-popover">
                           <button class="ticket-menu-item" type="button" (click)="viewTicket(ticket)">Ver detalle</button>
-                          @if (canManageTicket(ticket)) {
+                          @if (canEditTicket(ticket)) {
                             <button class="ticket-menu-item" type="button" (click)="editTicket(ticket)">Editar</button>
+                          }
+                          @if (canManageTicket(ticket)) {
                             <button class="ticket-menu-item ticket-menu-item-danger" type="button" (click)="openDeleteConfirmation(ticket)">Eliminar</button>
                           }
                         </div>
@@ -338,7 +343,9 @@
             {{ editingTicketID() === null ? 'Crear nuevo ticket' : 'Editar ticket' }}
           </h2>
           <p class="mt-1 text-body-sm text-text-secondary">
-            Completa los datos para registrar la incidencia.
+            {{ isRequesterEditingTicket()
+              ? 'Puedes corregir el título y la descripción mientras el ticket siga pendiente.'
+              : 'Completa los datos para registrar la incidencia.' }}
           </p>
         </div>
         <button class="rounded-control p-2 text-text-muted hover:bg-surface-container-high hover:text-neutral" type="button" aria-label="Cerrar" (click)="closeModal()">×</button>
@@ -418,6 +425,7 @@
             </p>
           </div>
 
+          @if (!isRequesterEditingTicket()) {
           <label>
             <span class="mb-1 block text-label-md font-medium">Proyecto <span class="text-destructive">*</span></span>
             <select class="ticket-control w-full" [(ngModel)]="newTicket.projectID" name="ticketProject" required>
@@ -484,6 +492,7 @@
               }
             </select>
           </label>
+          }
         </div>
       </div>
 

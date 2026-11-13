@@ -264,6 +264,62 @@ describe('Ticket', () => {
     expect(fixture.componentInstance['newTicket'].areaID).toBe(2);
   });
 
+  it('lets the requester edit only the text of a pending ticket', () => {
+    const component = fixture.componentInstance;
+    sessionUser.role = 'REQUESTER';
+    const ticket = {
+      ...component['tickets']()[0],
+      user: {
+        userID: 9,
+        userName: 'pedro',
+        name: 'Pedro',
+        apPaterno: 'Gómez',
+        apMaterno: 'López',
+        email: 'pedro@example.test',
+        active: true,
+        role: 'REQUESTER' as const,
+        areaID: 2,
+        areaName: 'Soporte',
+        createBy: null,
+        createDate: null,
+        updatedBy: null,
+        updatedDate: null,
+        deletedBy: null,
+        deletedDate: null,
+      },
+      statusID: {
+        statusID: 3,
+        name: 'Pendiente',
+        descrip: 'Por atender',
+        backgroundColor: '#fef3c7',
+        dotColor: '#b45309',
+      },
+    };
+    component['tickets'].set([ticket]);
+
+    expect(component['canEditTicket'](ticket)).toBe(true);
+    component['editTicket'](ticket);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('select[name="ticketArea"]')).toBeNull();
+    component['newTicket'].title = 'Título corregido';
+    component['newTicket'].areaID = 99;
+    component['newTicket'].assignedID = 99;
+    component['saveTicket']();
+
+    expect(ticketService.updateTicket).toHaveBeenCalledWith(expect.objectContaining({
+      ticketID: 7,
+      title: 'Título corregido',
+      user: 9,
+      areaID: 2,
+      assignedID: null,
+      statusID: 3,
+    }));
+
+    const inProgressTicket = { ...ticket, statusID: { ...ticket.statusID, name: 'En proceso' } };
+    expect(component['canEditTicket'](inProgressTicket)).toBe(false);
+  });
+
   it('defaults an unassigned ticket status to Pendiente when editing', () => {
     fixture.componentInstance['editTicket']({
       ticketID: 7,

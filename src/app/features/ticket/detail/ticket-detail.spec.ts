@@ -3,11 +3,21 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { AuthSessionService } from '../../../core/auth/auth-session.service';
 import { TicketService } from '../service/ticket.service';
+import { StatusService } from '../../status/service/status.service';
 import { UserService } from '../../user/service/user.service';
 import { TicketDetail } from './ticket-detail';
 
 describe('TicketDetail', () => {
   let fixture: ComponentFixture<TicketDetail>;
+  let sessionUser = {
+    userID: 9,
+    userName: 'pedro',
+    name: 'Pedro',
+    email: 'pedro@example.test',
+    role: 'ADMIN',
+    areaID: null as number | null,
+    areaName: null as string | null,
+  };
   const ticketService = {
     getTicketByID: vi.fn(() => of({
       ticketID: 7,
@@ -40,7 +50,11 @@ describe('TicketDetail', () => {
         updatedDate: null,
       }),
     ),
-    updateTicket: vi.fn((ticket: { ticketID: number; updatedDate: string }) =>
+    updateTicket: vi.fn((ticket: {
+      ticketID: number;
+      updatedDate: string;
+      statusID?: number | null;
+    }) =>
       of({
         ticketID: ticket.ticketID,
         title: 'No puedo iniciar sesión',
@@ -62,25 +76,45 @@ describe('TicketDetail', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    sessionUser = {
+      userID: 9,
+      userName: 'pedro',
+      name: 'Pedro',
+      email: 'pedro@example.test',
+      role: 'ADMIN',
+      areaID: null,
+      areaName: null,
+    };
     await TestBed.configureTestingModule({
       imports: [TicketDetail],
       providers: [
         { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ ticketID: '7' })) } },
         {
           provide: AuthSessionService,
-          useValue: {
-            user: () => ({
-              userID: 9,
-              userName: 'pedro',
-              name: 'Pedro',
-              email: 'pedro@example.test',
-              role: 'ADMIN',
-              areaID: null,
-              areaName: null,
-            }),
-          },
+          useValue: { user: () => sessionUser },
         },
         { provide: TicketService, useValue: ticketService },
+        {
+          provide: StatusService,
+          useValue: {
+            getAllStatuses: () => of([
+              {
+                statusID: 3,
+                name: 'Pendiente',
+                descrip: 'Por atender',
+                backgroundColor: '#fef3c7',
+                dotColor: '#b45309',
+              },
+              {
+                statusID: 4,
+                name: 'En proceso',
+                descrip: 'En atención',
+                backgroundColor: '#dbeafe',
+                dotColor: '#1d4ed8',
+              },
+            ]),
+          },
+        },
         {
           provide: UserService,
           useValue: {
@@ -139,22 +173,76 @@ describe('TicketDetail', () => {
       ticket: 7,
       user: 9,
     });
-    expect(ticketService.updateTicket).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ticketID: 7,
-        title: 'No puedo iniciar sesión',
-        user: null,
-      }),
-    );
-    const updatePayload = ticketService.updateTicket.mock.calls[0][0];
-    expect(new Date(updatePayload.updatedDate).toISOString()).toBe(updatePayload.updatedDate);
+    expect(ticketService.updateTicket).not.toHaveBeenCalled();
     expect(compiled.textContent).toContain('Se está revisando el problema.');
     expect(compiled.textContent).toContain('Atención');
     expect(compiled.textContent).toContain('Pedro Gómez López');
-    expect(fixture.componentInstance['ticket']()?.updatedDate).toBe(updatePayload.updatedDate);
+    expect(fixture.componentInstance['ticket']()?.updatedDate).toBe('2026-10-24T11:00:00.000Z');
     const commentRows = compiled.querySelectorAll('.detail-chat-row');
     expect(commentRows[0].classList.contains('detail-chat-row-other')).toBe(true);
     expect(commentRows[1].classList.contains('detail-chat-row-own')).toBe(true);
+  });
+
+  it('allows the assigned agent to change the ticket status from the detail page', () => {
+    const component = fixture.componentInstance;
+    sessionUser = {
+      userID: 15,
+      userName: 'maria',
+      name: 'María',
+      email: 'maria@example.test',
+      role: 'AGENT',
+      areaID: 1,
+      areaName: 'Soporte',
+    };
+    const ticket = component['ticket']();
+    expect(ticket).not.toBeNull();
+    component['ticket'].set({
+      ...ticket!,
+      assignedID: {
+        userID: 15,
+        userName: 'maria',
+        name: 'María',
+        apPaterno: 'López',
+        apMaterno: 'Ruiz',
+        email: 'maria@example.test',
+        active: true,
+        role: 'AGENT',
+        areaID: 1,
+        areaName: 'Soporte',
+        createBy: null,
+        createDate: null,
+        updatedBy: null,
+        updatedDate: null,
+        deletedBy: null,
+        deletedDate: null,
+      },
+      statusID: {
+        statusID: 3,
+        name: 'Pendiente',
+        descrip: 'Por atender',
+        backgroundColor: '#fef3c7',
+        dotColor: '#b45309',
+      },
+    });
+    component['selectedStatusID'].set(4);
+    fixture.detectChanges();
+
+    expect(component['canChangeStatus'](component['ticket']()!)).toBe(true);
+    component['changeStatus']();
+
+    expect(ticketService.updateTicket).toHaveBeenCalledWith(expect.objectContaining({
+      ticketID: 7,
+      assignedID: 15,
+      statusID: 4,
+    }));
+    expect(component['ticket']()?.statusID?.name).toBe('En proceso');
+  });
+
+  it('does not let an unassigned agent change the ticket status', () => {
+    const component = fixture.componentInstance;
+    sessionUser.role = 'AGENT';
+
+    expect(component['canChangeStatus'](component['ticket']()!)).toBe(false);
   });
 
   it('loads the comment author by userID through UserService', () => {

@@ -31,6 +31,7 @@ import { UserService } from '../user/service/user.service';
 import type { UserModel } from '../user/model/user.model';
 import { TicketService } from './service/ticket.service';
 import { sanitizeTicketDescription, ticketDescriptionText } from './model/rich-text';
+import { isPendingTicketStatus } from './model/ticket-status';
 import type {
   NewTicketModel,
   TicketFormModel,
@@ -360,7 +361,7 @@ export class Ticket implements OnDestroy, OnInit {
 
   protected editTicket(ticket: TicketModel): void {
     this.closeActionsMenu();
-    if (!this.canManageTicket(ticket)) {
+    if (!this.canEditTicket(ticket)) {
       return;
     }
     this.editingTicketID.set(ticket.ticketID);
@@ -388,32 +389,52 @@ export class Ticket implements OnDestroy, OnInit {
   }
 
   protected saveTicket(): void {
+    const ticketID = this.editingTicketID();
+    const existingTicket = ticketID === null
+      ? null
+      : this.tickets().find((ticket) => ticket.ticketID === ticketID) ?? null;
+    const requesterEdit = existingTicket !== null &&
+      this.canEditAsRequester(existingTicket) &&
+      !this.canManageTicket(existingTicket);
     const request: NewTicketModel = {
       title: this.newTicket.title.trim(),
       description:
         sanitizeTicketDescription(
           this.descriptionEditorElement?.innerHTML ?? this.newTicket.description ?? '',
         ).trim() || null,
-      kind: this.newTicket.kindID,
-      user: this.editingTicketID() === null
-        ? this.authSession.user()?.userID ?? 0
-        : this.newTicket.userID,
-      assignedID: this.newTicket.assignedID,
-      project: this.newTicket.projectID,
-      areaID: this.newTicket.areaID,
-      priorityID: this.newTicket.priorityID,
-      statusID: this.newTicket.statusID,
+      kind: requesterEdit ? existingTicket?.kind?.kindID ?? null : this.newTicket.kindID,
+      user: requesterEdit
+        ? existingTicket?.user?.userID ?? 0
+        : ticketID === null
+          ? this.authSession.user()?.userID ?? 0
+          : this.newTicket.userID,
+      assignedID: requesterEdit
+        ? existingTicket?.assignedID?.userID ?? null
+        : this.newTicket.assignedID,
+      project: requesterEdit
+        ? existingTicket?.project?.projectID ?? null
+        : this.newTicket.projectID,
+      areaID: requesterEdit
+        ? existingTicket?.areaID?.areaID ?? null
+        : this.newTicket.areaID,
+      priorityID: requesterEdit
+        ? existingTicket?.priorityID?.priorityID ?? null
+        : this.newTicket.priorityID,
+      statusID: requesterEdit
+        ? existingTicket?.statusID?.statusID ?? null
+        : this.newTicket.statusID,
     };
 
     if (
       this.isSaving() ||
       !request.title ||
       !request.user ||
-      !this.newTicket.kindID ||
-      !this.newTicket.projectID ||
-      !this.newTicket.areaID ||
-      !this.newTicket.priorityID ||
-      !this.newTicket.statusID
+      (!requesterEdit &&
+        (!this.newTicket.kindID ||
+          !this.newTicket.projectID ||
+          !this.newTicket.areaID ||
+          !this.newTicket.priorityID ||
+          !this.newTicket.statusID))
     ) {
       this.errorMessage.set('Completa los campos obligatorios antes de guardar el ticket.');
       return;
@@ -421,7 +442,6 @@ export class Ticket implements OnDestroy, OnInit {
 
     this.isSaving.set(true);
     this.errorMessage.set('');
-    const ticketID = this.editingTicketID();
     const request$ = ticketID === null
       ? this.ticketService.createTicket(request)
       : this.ticketService.updateTicket({ ...request, ticketID } satisfies UpdateTicketModel);
@@ -544,6 +564,20 @@ export class Ticket implements OnDestroy, OnInit {
       (user.areaID === null || ticket.areaID?.areaID === user.areaID);
   }
 
+  protected canEditTicket(ticket: TicketModel): boolean {
+    return this.canManageTicket(ticket) || this.canEditAsRequester(ticket);
+  }
+
+  protected isRequesterEditingTicket(): boolean {
+    const ticketID = this.editingTicketID();
+    const ticket = ticketID === null
+      ? null
+      : this.tickets().find((item) => item.ticketID === ticketID) ?? null;
+    return ticket !== null &&
+      !this.canManageTicket(ticket) &&
+      this.canEditAsRequester(ticket);
+  }
+
   protected getUserInitials(user: UserModel | null): string {
     if (!user) {
       return '—';
@@ -626,6 +660,13 @@ export class Ticket implements OnDestroy, OnInit {
     return this.statuses().find(
       (status) => status.name.trim().toLocaleLowerCase() === 'pendiente',
     )?.statusID ?? null;
+  }
+
+  private canEditAsRequester(ticket: TicketModel): boolean {
+    const userID = this.authSession.user()?.userID;
+    return userID !== undefined &&
+      ticket.user?.userID === userID &&
+      isPendingTicketStatus(ticket.statusID);
   }
 }
 

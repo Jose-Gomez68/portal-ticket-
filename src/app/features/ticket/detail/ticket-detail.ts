@@ -3,12 +3,15 @@ import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import type { Subscription } from 'rxjs';
-import { forkJoin, tap } from 'rxjs';
+import { forkJoin } from 'rxjs';
 import { AuthSessionService } from '../../../core/auth/auth-session.service';
 import { ErrorAlert } from '../../../shared/ui/error-alert/error-alert';
+import { StatusService } from '../../status/service/status.service';
+import type { StatusModel } from '../../status/model/status.model';
 import { TicketService } from '../service/ticket.service';
 import type { TicketModel } from '../model/ticket.model';
 import { sanitizeTicketDescription } from '../model/rich-text';
+import { isResolvedTicketStatus } from '../model/ticket-status';
 import type { UserModel } from '../../user/model/user.model';
 import { UserService } from '../../user/service/user.service';
 
@@ -23,22 +26,30 @@ export class TicketDetail implements OnDestroy, OnInit {
   private readonly ticketService = inject(TicketService);
   private readonly authSession = inject(AuthSessionService);
   private readonly userService = inject(UserService);
+  private readonly statusService = inject(StatusService);
   private routeSubscription: Subscription | null = null;
   private ticketRequest: Subscription | null = null;
   private ticketUpdateRequest: Subscription | null = null;
   private commentRequest: Subscription | null = null;
   private userRequest: Subscription | null = null;
+  private statusRequest: Subscription | null = null;
 
   protected readonly ticket = signal<TicketModel | null>(null);
   protected readonly users = signal<UserModel[]>([]);
+  protected readonly statuses = signal<StatusModel[]>([]);
+  protected readonly selectedStatusID = signal<number | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly isSubmittingComment = signal(false);
+  protected readonly isLoadingStatuses = signal(false);
+  protected readonly isUpdatingStatus = signal(false);
   protected readonly commentDraft = signal('');
   protected readonly commentError = signal('');
+  protected readonly statusError = signal('');
   protected readonly errorMessage = signal('');
   protected readonly authorLookupError = signal('');
 
   ngOnInit(): void {
+    this.loadStatuses();
     this.routeSubscription = this.route.paramMap.subscribe((params) => {
       const ticketID = Number(params.get('ticketID'));
       if (!Number.isInteger(ticketID) || ticketID <= 0) {
@@ -58,6 +69,7 @@ export class TicketDetail implements OnDestroy, OnInit {
     this.ticketUpdateRequest?.unsubscribe();
     this.commentRequest?.unsubscribe();
     this.userRequest?.unsubscribe();
+    this.statusRequest?.unsubscribe();
   }
 
   protected ticketCode(ticketID: number): string {
@@ -160,6 +172,83 @@ export class TicketDetail implements OnDestroy, OnInit {
     );
   }
 
+  protected canChangeStatus(ticket: TicketModel): boolean {
+    const user = this.authSession.user();
+    if (!user) {
+      return false;
+    }
+
+    return (
+      (user.role === 'ADMIN' &&
+        (user.areaID === null || ticket.areaID?.areaID === user.areaID)) ||
+      ((user.role === 'AGENT' || user.role === 'SUPERVISOR') &&
+        ticket.assignedID?.userID === user.userID)
+    );
+  }
+
+  protected changeStatus(): void {
+    const ticket = this.ticket();
+    const targetStatus = this.statuses().find(
+      (status) => status.statusID === this.selectedStatusID(),
+    );
+    if (
+      !ticket ||
+      !targetStatus ||
+      !this.canChangeStatus(ticket) ||
+      targetStatus.statusID === ticket.statusID?.statusID ||
+      this.isUpdatingStatus()
+    ) {
+      return;
+    }
+
+    this.statusError.set('');
+    this.isUpdatingStatus.set(true);
+    const updatedDate = new Date().toISOString();
+    this.ticketUpdateRequest = this.ticketService
+      .updateTicket({
+        ticketID: ticket.ticketID,
+        title: ticket.title,
+        description: ticket.description,
+        kind: ticket.kind?.kindID ?? null,
+        user: ticket.user?.userID ?? null,
+        assignedID: ticket.assignedID?.userID ?? null,
+        project: ticket.project?.projectID ?? null,
+        areaID: ticket.areaID?.areaID ?? null,
+        priorityID: ticket.priorityID?.priorityID ?? null,
+        statusID: targetStatus.statusID,
+        updatedDate,
+      })
+      .subscribe({
+        next: (updatedTicket) => {
+          const status = updatedTicket.statusID ?? targetStatus;
+          this.ticket.update((current) =>
+            current
+              ? {
+                  ...current,
+                  statusID: status,
+                  updatedDate: updatedTicket.updatedDate ?? updatedDate,
+                }
+              : current,
+          );
+          this.selectedStatusID.set(status.statusID);
+          this.isUpdatingStatus.set(false);
+        },
+        error: (error: unknown) => {
+          this.statusError.set(`No se pudo actualizar el estado: ${getErrorMessage(error)}`);
+          this.selectedStatusID.set(ticket.statusID?.statusID ?? null);
+          this.isUpdatingStatus.set(false);
+        },
+      });
+  }
+
+  protected isTicketRequester(ticket: TicketModel): boolean {
+    return ticket.user?.userID === this.authSession.user()?.userID;
+  }
+
+  protected isResolvedTicket(ticket: TicketModel): boolean {
+    return isResolvedTicketStatus(ticket.statusID);
+  }
+
   protected commentDate(comment: unknown): string | null {
     if (typeof comment !== 'object' || comment === null) {
       return null;
@@ -183,7 +272,6 @@ export class TicketDetail implements OnDestroy, OnInit {
 
     this.commentError.set('');
     this.isSubmittingComment.set(true);
-    const updatedDate = new Date().toISOString();
     this.commentRequest = this.ticketService
       .createTicketComment({
         message,
@@ -192,9 +280,6 @@ export class TicketDetail implements OnDestroy, OnInit {
       })
       .subscribe({
         next: (comment) => {
-
-          console.log('Comentario agregado:', comment);
-
           this.ticket.update((current) => {
             if (!current) {
               return current;
@@ -202,43 +287,12 @@ export class TicketDetail implements OnDestroy, OnInit {
             return {
               ...current,
               comments: [...current.comments, comment],
+              updatedDate: comment.createdDate ?? current.updatedDate,
             };
           });
           this.loadCommentUsers([comment]);
           this.commentDraft.set('');
-          this.ticketUpdateRequest = this.ticketService
-            .updateTicket({
-              ticketID: ticket.ticketID,
-              title: ticket.title,
-              description: ticket.description,
-              kind: ticket.kind?.kindID ?? null,
-              user: ticket.user?.userID ?? null,
-              assignedID: ticket.assignedID?.userID ?? null,
-              project: ticket.project?.projectID ?? null,
-              areaID: ticket.areaID?.areaID ?? null,
-              priorityID: ticket.priorityID?.priorityID ?? null,
-              statusID: ticket.statusID?.statusID ?? null,
-              updatedDate,
-            })
-            .subscribe({
-              next: (updatedTicket) => {
-                this.ticket.update((current) =>
-                  current
-                    ? {
-                        ...current,
-                        updatedDate: updatedTicket.updatedDate ?? updatedDate,
-                      }
-                    : current,
-                );
-                this.isSubmittingComment.set(false);
-              },
-              error: (error: unknown) => {
-                this.commentError.set(
-                  `El comentario se agregó, pero no se pudo actualizar la fecha del ticket: ${getErrorMessage(error)}`,
-                );
-                this.isSubmittingComment.set(false);
-              },
-            });
+          this.isSubmittingComment.set(false);
         },
         error: (error: unknown) => {
           this.commentError.set(`No se pudo agregar el comentario: ${getErrorMessage(error)}`);
@@ -258,7 +312,7 @@ export class TicketDetail implements OnDestroy, OnInit {
     this.ticketRequest = this.ticketService.getTicketByID(ticketID).subscribe({
       next: (ticket) => {
         this.ticket.set(ticket);
-        console.log('Comentarios recibidos en detalle:', ticket.comments);
+        this.selectedStatusID.set(ticket.statusID?.statusID ?? null);
         this.loadCommentUsers(ticket.comments);
         this.commentDraft.set('');
         this.commentError.set('');
@@ -269,6 +323,22 @@ export class TicketDetail implements OnDestroy, OnInit {
           `No se pudo cargar el ticket: ${getErrorMessage(error)}`,
         );
         this.isLoading.set(false);
+      },
+    });
+  }
+
+  private loadStatuses(): void {
+    this.statusRequest?.unsubscribe();
+    this.isLoadingStatuses.set(true);
+    this.statusError.set('');
+    this.statusRequest = this.statusService.getAllStatuses().subscribe({
+      next: (statuses) => {
+        this.statuses.set(statuses);
+        this.isLoadingStatuses.set(false);
+      },
+      error: (error: unknown) => {
+        this.statusError.set(`No se pudieron cargar los estados: ${getErrorMessage(error)}`);
+        this.isLoadingStatuses.set(false);
       },
     });
   }
@@ -304,16 +374,12 @@ export class TicketDetail implements OnDestroy, OnInit {
     this.authorLookupError.set('');
     this.userRequest = forkJoin(
       userIDs.map((userID) => {
-        console.log('Consultando UserService.getUserByID:', userID);
-        return this.userService.getUserByID(userID).pipe(
-          tap((user) => console.log('Respuesta getUserByID:', { userID, user })),
-        );
+        return this.userService.getUserByID(userID);
       }),
     )
       .subscribe({
         next: (users) => this.users.update((current) => [...current, ...users]),
         error: (error: unknown) => {
-          console.error('Error en UserService.getUserByID:', error);
           this.authorLookupError.set(
             `No se pudieron cargar los nombres de quienes comentaron: ${getErrorMessage(error)}`,
           );
