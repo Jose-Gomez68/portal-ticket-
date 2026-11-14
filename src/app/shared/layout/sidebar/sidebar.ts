@@ -19,6 +19,7 @@ export class Sidebar implements OnDestroy, OnInit {
   private userRequest: Subscription | null = null;
   protected readonly profile = signal<UserModel | null>(null);
   protected readonly profileError = signal('');
+  protected readonly isLogoutConfirmationOpen = signal(false);
 
   ngOnInit(): void {
     const userID = this.authSession.user()?.userID;
@@ -59,7 +60,16 @@ export class Sidebar implements OnDestroy, OnInit {
       : `${parts[0][0]}${parts.at(-1)?.[0] ?? ''}`.toLocaleUpperCase();
   }
 
-  protected logout(): void {
+  protected requestLogout(): void {
+    this.isLogoutConfirmationOpen.set(true);
+  }
+
+  protected cancelLogout(): void {
+    this.isLogoutConfirmationOpen.set(false);
+  }
+
+  protected confirmLogout(): void {
+    this.isLogoutConfirmationOpen.set(false);
     this.authSession.logout();
     void this.router.navigateByUrl('/login');
   }

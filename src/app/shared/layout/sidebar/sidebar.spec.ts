@@ -82,7 +82,7 @@ describe('Sidebar', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Supervisor');
   });
 
-  it('clears the local session and navigates to login when logging out', () => {
+  it('asks for confirmation before clearing the session and navigating to login', () => {
     fixture.detectChanges();
     const buttons = fixture.nativeElement.querySelectorAll(
       'button',
@@ -94,8 +94,56 @@ describe('Sidebar', () => {
       throw new Error('Logout button was not rendered.');
     }
     logoutButton.dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('¿Deseas cerrar la sesión?');
+    expect(logout).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+
+    const confirmationButtons = fixture.nativeElement.querySelectorAll(
+      'button',
+    ) as NodeListOf<HTMLButtonElement>;
+    const confirmButton = Array.from(confirmationButtons).find((button) =>
+      button.textContent?.includes('Sí, cerrar sesión'),
+    );
+    if (!confirmButton) {
+      throw new Error('Logout confirmation button was not rendered.');
+    }
+    confirmButton.dispatchEvent(new Event('click'));
+    fixture.detectChanges();
 
     expect(logout).toHaveBeenCalledOnce();
     expect(router.navigateByUrl).toHaveBeenCalledWith('/login');
+  });
+
+  it('keeps the session active when logout is canceled', () => {
+    fixture.detectChanges();
+    const buttons = fixture.nativeElement.querySelectorAll(
+      'button',
+    ) as NodeListOf<HTMLButtonElement>;
+    const logoutButton = Array.from(buttons).find((button) =>
+      button.textContent?.includes('Cerrar sesión'),
+    );
+    if (!logoutButton) {
+      throw new Error('Logout button was not rendered.');
+    }
+    logoutButton.dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    const confirmationButtons = fixture.nativeElement.querySelectorAll(
+      'button',
+    ) as NodeListOf<HTMLButtonElement>;
+    const cancelButton = Array.from(confirmationButtons).find((button) =>
+      button.textContent?.includes('Cancelar'),
+    );
+    if (!cancelButton) {
+      throw new Error('Logout cancellation button was not rendered.');
+    }
+    cancelButton.dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    expect(logout).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).not.toContain('¿Deseas cerrar la sesión?');
   });
 });
