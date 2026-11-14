@@ -43,7 +43,7 @@
 .nav-item-active,
 .nav-item-active:hover {
   border-left-color: var(--color-primary);
-  background-color: #eff6ff;
+  background-color: var(--color-primary-subtle);
   color: var(--color-primary);
   font-weight: 600;
 }

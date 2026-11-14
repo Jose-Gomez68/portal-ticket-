@@ -1,7 +1,9 @@
 import { Component, inject } from '@angular/core';
 import { AuthSessionService } from '../../../core/auth/auth-session.service';
+import { ThemeToggle } from '../../ui/theme-toggle/theme-toggle';
 
 @Component({
+  imports: [ThemeToggle],
   selector: 'app-topbar',
   styleUrl: './topbar.css',
   templateUrl: './topbar.html',

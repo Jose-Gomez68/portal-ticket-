@@ -1,5 +1,6 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { ThemeService } from './core/theme/theme.service';
 import { Login } from './features/login/login';
 
 @Component({
@@ -9,5 +10,9 @@ import { Login } from './features/login/login';
   templateUrl: './app.html',
 })
 export class App {
+  constructor() {
+    inject(ThemeService);
+  }
+
   protected readonly title = signal('portal-tickets');
 }

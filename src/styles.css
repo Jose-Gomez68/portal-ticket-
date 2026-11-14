@@ -5,6 +5,7 @@
   --color-on-primary: #ffffff;
   --color-primary-hover: #1d4ed8;
   --color-primary-active: #172554;
+  --color-primary-subtle: #eff6ff;
   --color-secondary: #0284c7;
   --color-tertiary: #6366f1;
   --color-neutral: #0f172a;
@@ -45,6 +46,7 @@
   --color-destructive: #e11d48;
   --color-destructive-hover: #be123c;
   --color-focus: #2563eb;
+  --color-chart-track: #f1f5f9;
 
   --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -102,6 +104,63 @@
   --shadow-modal: 0 20px 25px -5px rgb(15 23 42 / 10%), 0 8px 10px -6px rgb(15 23 42 / 6%);
   --shadow-focus: 0 0 0 2px rgb(37 99 235 / 15%);
   --shadow-error: 0 0 0 2px rgb(225 29 72 / 15%);
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-primary: #91adff;
+  --color-on-primary: #101a32;
+  --color-primary-hover: #a8bdff;
+  --color-primary-active: #7898f5;
+  --color-primary-subtle: #1b2b4a;
+  --color-secondary: #38bdf8;
+  --color-tertiary: #a5b4fc;
+  --color-neutral: #e7edf7;
+
+  --color-background: #0b1120;
+  --color-surface: #111a2b;
+  --color-surface-muted: #192438;
+  --color-surface-container-low: #0e1727;
+  --color-border: #29364b;
+  --color-border-strong: #3a4b64;
+  --color-outline-variant: #43536b;
+  --color-on-surface: #e7edf7;
+  --color-text-secondary: #bec9d9;
+  --color-text-muted: #91a1b7;
+
+  --color-status-pending: #fbbf24;
+  --color-status-pending-bg: #352b16;
+  --color-status-pending-border: #5e4a1f;
+  --color-status-review: #38bdf8;
+  --color-status-review-bg: #102a3a;
+  --color-status-review-border: #1d4c62;
+  --color-status-progress: #a5b4fc;
+  --color-status-progress-bg: #24264a;
+  --color-status-progress-border: #383b6c;
+  --color-status-closed: #34d399;
+  --color-status-closed-bg: #12362d;
+  --color-status-closed-border: #1c5947;
+
+  --color-priority-low: #b7c4d6;
+  --color-priority-low-bg: #202c3f;
+  --color-priority-medium: #7cb9ff;
+  --color-priority-medium-bg: #142c48;
+  --color-priority-high: #fdba74;
+  --color-priority-high-bg: #3f291a;
+  --color-priority-critical: #fda4af;
+  --color-priority-critical-bg: #431d2b;
+
+  --color-destructive: #fb7185;
+  --color-destructive-hover: #f43f5e;
+  --color-focus: #91adff;
+  --color-chart-track: #263449;
+
+  --shadow-panel: 0 1px 3px 0 rgb(0 0 0 / 24%), 0 1px 2px -1px rgb(0 0 0 / 24%);
+  --shadow-popover: 0 8px 20px -4px rgb(0 0 0 / 42%);
+  --shadow-modal: 0 20px 35px -8px rgb(0 0 0 / 55%), 0 8px 14px -6px rgb(0 0 0 / 36%);
+  --shadow-focus: 0 0 0 2px rgb(145 173 255 / 24%);
+  --shadow-error: 0 0 0 2px rgb(251 113 133 / 22%);
 }
 
 @layer base {
@@ -171,7 +230,7 @@
   }
 
   .btn-ghost:hover:not(:disabled) {
-    background-color: #f1f5f9;
+    background-color: var(--color-surface-muted);
     color: var(--color-neutral);
   }
 
