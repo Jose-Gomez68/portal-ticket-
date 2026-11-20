@@ -50,6 +50,11 @@ export class Sidebar implements OnDestroy, OnInit {
     return USER_ROLES.find((item) => item.value === role)?.label ?? 'Usuario';
   }
 
+  protected canViewAdministration(): boolean {
+    const role = this.authSession.user()?.role;
+    return role === 'ADMIN' || role === 'SUPERVISOR';
+  }
+
   protected initials(): string {
     const parts = this.displayName().trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) {

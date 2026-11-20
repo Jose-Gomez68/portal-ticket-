@@ -82,6 +82,28 @@ describe('Sidebar', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Supervisor');
   });
 
+  it('shows only dashboard and tickets for agents', () => {
+    sessionUser.role = 'AGENT';
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(text).toContain('Dashboard');
+    expect(text).toContain('Tickets');
+    expect(text).not.toContain('Proyectos');
+    expect(text).not.toContain('Usuarios');
+  });
+
+  it('shows only dashboard and tickets for requesters', () => {
+    sessionUser.role = 'REQUESTER';
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(text).toContain('Dashboard');
+    expect(text).toContain('Tickets');
+    expect(text).not.toContain('Áreas');
+    expect(text).not.toContain('Nuevo ticket');
+  });
+
   it('asks for confirmation before clearing the session and navigating to login', () => {
     fixture.detectChanges();
     const buttons = fixture.nativeElement.querySelectorAll(

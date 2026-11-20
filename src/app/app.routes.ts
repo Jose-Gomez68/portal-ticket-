@@ -8,6 +8,7 @@ import { Type } from './features/type/type';
 import { User } from './features/user/user';
 import { PortalLayout } from './shared/layout/portal-layout/portal-layout';
 import { authGuard } from './core/auth/auth.guard';
+import { administrationGuard } from './core/auth/administration.guard';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -18,8 +19,8 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: 'dashboard', component: Dashboard },
-      { path: 'area', component: Area },
-      { path: 'project', component: Project },
+      { path: 'area', component: Area, canActivate: [administrationGuard] },
+      { path: 'project', component: Project, canActivate: [administrationGuard] },
       {
         path: 'ticket',
         loadComponent: () => import('./features/ticket/ticket').then((module) => module.Ticket),
@@ -32,10 +33,11 @@ export const routes: Routes = [
       {
         path: 'priority',
         loadComponent: () => import('./features/priority/priority').then((module) => module.Priority),
+        canActivate: [administrationGuard],
       },
-      { path: 'status', component: Status },
-      { path: 'type', component: Type },
-      { path: 'user', component: User },
+      { path: 'status', component: Status, canActivate: [administrationGuard] },
+      { path: 'type', component: Type, canActivate: [administrationGuard] },
+      { path: 'user', component: User, canActivate: [administrationGuard] },
     ],
   },
 ];
