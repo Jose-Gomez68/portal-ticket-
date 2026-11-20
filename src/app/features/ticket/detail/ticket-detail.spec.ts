@@ -118,6 +118,26 @@ describe('TicketDetail', () => {
         {
           provide: UserService,
           useValue: {
+            getAllUsers: vi.fn(() => of([
+              {
+                userID: 15,
+                userName: 'maria',
+                name: 'María',
+                apPaterno: 'López',
+                apMaterno: 'Ruiz',
+                email: 'maria@example.test',
+                active: true,
+                role: 'AGENT',
+                areaID: 1,
+                areaName: 'Soporte',
+                createBy: null,
+                createDate: null,
+                updatedBy: null,
+                updatedDate: null,
+                deletedBy: null,
+                deletedDate: null,
+              },
+            ])),
             getUserByID: vi.fn((userID: number) => of({
               userID,
               userName: userID === 15 ? 'maria' : 'pedro',
@@ -243,6 +263,58 @@ describe('TicketDetail', () => {
     sessionUser.role = 'AGENT';
 
     expect(component['canChangeStatus'](component['ticket']()!)).toBe(false);
+  });
+
+  it('allows only an administrator to change the ticket assignee', () => {
+    const component = fixture.componentInstance;
+    const ticket = component['ticket']();
+
+    expect(component['canReassignTicket'](ticket!)).toBe(true);
+    sessionUser.role = 'AGENT';
+    expect(component['canReassignTicket'](ticket!)).toBe(false);
+
+    sessionUser.role = 'ADMIN';
+    component['selectedAssignedID'].set(15);
+    component['changeAssignment']();
+
+    expect(ticketService.updateTicket).toHaveBeenCalledWith(expect.objectContaining({
+      ticketID: 7,
+      assignedID: 15,
+    }));
+  });
+
+  it('selects the current assignee by default', () => {
+    const component = fixture.componentInstance;
+    const ticket = component['ticket']();
+    component['ticket'].set({
+      ...ticket!,
+      assignedID: {
+        userID: 15,
+        userName: 'maria',
+        name: 'María',
+        apPaterno: 'López',
+        apMaterno: 'Ruiz',
+        email: 'maria@example.test',
+        active: true,
+        role: 'AGENT',
+        areaID: 1,
+        areaName: 'Soporte',
+        createBy: null,
+        createDate: null,
+        updatedBy: null,
+        updatedDate: null,
+        deletedBy: null,
+        deletedDate: null,
+      },
+    });
+    component['selectedAssignedID'].set(ticket?.assignedID?.userID ?? 15);
+    fixture.detectChanges();
+
+    const select = fixture.nativeElement.querySelector(
+      'select[name="ticketAssignee"]',
+    ) as HTMLSelectElement;
+    expect(select.value).not.toBe('');
+    expect(component['selectedAssignedID']()).toBe(15);
   });
 
   it('loads the comment author by userID through UserService', () => {

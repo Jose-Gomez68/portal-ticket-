@@ -32,24 +32,30 @@ export class TicketDetail implements OnDestroy, OnInit {
   private ticketUpdateRequest: Subscription | null = null;
   private commentRequest: Subscription | null = null;
   private userRequest: Subscription | null = null;
+  private assigneeRequest: Subscription | null = null;
   private statusRequest: Subscription | null = null;
 
   protected readonly ticket = signal<TicketModel | null>(null);
   protected readonly users = signal<UserModel[]>([]);
   protected readonly statuses = signal<StatusModel[]>([]);
   protected readonly selectedStatusID = signal<number | null>(null);
+  protected readonly selectedAssignedID = signal<number | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly isSubmittingComment = signal(false);
   protected readonly isLoadingStatuses = signal(false);
+  protected readonly isLoadingUsers = signal(false);
   protected readonly isUpdatingStatus = signal(false);
+  protected readonly isUpdatingAssignment = signal(false);
   protected readonly commentDraft = signal('');
   protected readonly commentError = signal('');
   protected readonly statusError = signal('');
+  protected readonly assignmentError = signal('');
   protected readonly errorMessage = signal('');
   protected readonly authorLookupError = signal('');
 
   ngOnInit(): void {
     this.loadStatuses();
+    this.loadUsers();
     this.routeSubscription = this.route.paramMap.subscribe((params) => {
       const ticketID = Number(params.get('ticketID'));
       if (!Number.isInteger(ticketID) || ticketID <= 0) {
@@ -69,6 +75,7 @@ export class TicketDetail implements OnDestroy, OnInit {
     this.ticketUpdateRequest?.unsubscribe();
     this.commentRequest?.unsubscribe();
     this.userRequest?.unsubscribe();
+    this.assigneeRequest?.unsubscribe();
     this.statusRequest?.unsubscribe();
   }
 
@@ -184,6 +191,90 @@ export class TicketDetail implements OnDestroy, OnInit {
       ((user.role === 'AGENT' || user.role === 'SUPERVISOR') &&
         ticket.assignedID?.userID === user.userID)
     );
+  }
+
+  protected canReassignTicket(ticket: TicketModel): boolean {
+    const user = this.authSession.user();
+    return (
+      user?.role === 'ADMIN' &&
+      (user.areaID === null || ticket.areaID?.areaID === user.areaID)
+    );
+  }
+
+  protected availableAssignees(ticket: TicketModel): UserModel[] {
+    const user = this.authSession.user();
+    const assignees = this.users().filter((candidate) =>
+      candidate.active !== false &&
+      (candidate.role === 'AGENT' || candidate.role === 'SUPERVISOR') &&
+      (
+        user?.areaID === null ||
+        ticket.areaID?.areaID == null ||
+        candidate.areaID === ticket.areaID?.areaID
+      )
+    );
+
+    if (ticket.assignedID) {
+      return [
+        ticket.assignedID,
+        ...assignees.filter((candidate) => candidate.userID !== ticket.assignedID?.userID),
+      ];
+    }
+
+    return assignees;
+  }
+
+  protected changeAssignment(): void {
+    const ticket = this.ticket();
+    const targetUserID = this.selectedAssignedID();
+    if (
+      !ticket ||
+      !this.canReassignTicket(ticket) ||
+      this.isUpdatingAssignment() ||
+      targetUserID === ticket.assignedID?.userID
+    ) {
+      return;
+    }
+
+    this.assignmentError.set('');
+    this.isUpdatingAssignment.set(true);
+    const updatedDate = new Date().toISOString();
+    this.ticketUpdateRequest = this.ticketService
+      .updateTicket({
+        ticketID: ticket.ticketID,
+        title: ticket.title,
+        description: ticket.description,
+        kind: ticket.kind?.kindID ?? null,
+        user: ticket.user?.userID ?? null,
+        assignedID: targetUserID,
+        project: ticket.project?.projectID ?? null,
+        areaID: ticket.areaID?.areaID ?? null,
+        priorityID: ticket.priorityID?.priorityID ?? null,
+        statusID: ticket.statusID?.statusID ?? null,
+        updatedDate,
+      })
+      .subscribe({
+        next: (updatedTicket) => {
+          const assignedUser = targetUserID === null
+            ? null
+            : this.users().find((user) => user.userID === targetUserID) ?? null;
+          this.ticket.update((current) =>
+            current
+              ? {
+                  ...current,
+                  assignedID: updatedTicket.assignedID ?? assignedUser,
+                  updatedDate: updatedTicket.updatedDate ?? updatedDate,
+                }
+              : current,
+          );
+          this.selectedAssignedID.set(targetUserID);
+          this.isUpdatingAssignment.set(false);
+        },
+        error: (error: unknown) => {
+          this.assignmentError.set(`No se pudo actualizar la asignación: ${getErrorMessage(error)}`);
+          this.selectedAssignedID.set(ticket.assignedID?.userID ?? null);
+          this.isUpdatingAssignment.set(false);
+        },
+      });
   }
 
   protected changeStatus(): void {
@@ -313,6 +404,7 @@ export class TicketDetail implements OnDestroy, OnInit {
       next: (ticket) => {
         this.ticket.set(ticket);
         this.selectedStatusID.set(ticket.statusID?.statusID ?? null);
+        this.selectedAssignedID.set(ticket.assignedID?.userID ?? null);
         this.loadCommentUsers(ticket.comments);
         this.commentDraft.set('');
         this.commentError.set('');
@@ -343,6 +435,26 @@ export class TicketDetail implements OnDestroy, OnInit {
     });
   }
 
+  private loadUsers(): void {
+    this.assigneeRequest?.unsubscribe();
+    this.isLoadingUsers.set(true);
+    this.assignmentError.set('');
+    this.assigneeRequest = this.userService.getAllUsers().subscribe({
+      next: (users) => {
+        this.users.update((current) => {
+          const merged = new Map(current.map((user) => [user.userID, user]));
+          users.forEach((user) => merged.set(user.userID, user));
+          return [...merged.values()];
+        });
+        this.isLoadingUsers.set(false);
+      },
+      error: (error: unknown) => {
+        this.assignmentError.set(`No se pudieron cargar los responsables: ${getErrorMessage(error)}`);
+        this.isLoadingUsers.set(false);
+      },
+    });
+  }
+
   private getCommentUserName(userID: number): string {
     const user = this.users().find((item) => item.userID === userID);
     if (user) {
@@ -359,11 +471,10 @@ export class TicketDetail implements OnDestroy, OnInit {
   }
 
   private loadCommentUsers(comments: unknown[]): void {
-    const knownUserIDs = new Set(this.users().map((user) => user.userID));
     const userIDs = [...new Set(
       comments
         .map(getCommentUserID)
-        .filter((userID): userID is number => userID !== null && !knownUserIDs.has(userID)),
+        .filter((userID): userID is number => userID !== null),
     )];
     console.log('IDs de usuario extraídos de comentarios:', userIDs);
     if (userIDs.length === 0) {
@@ -378,7 +489,11 @@ export class TicketDetail implements OnDestroy, OnInit {
       }),
     )
       .subscribe({
-        next: (users) => this.users.update((current) => [...current, ...users]),
+        next: (users) => this.users.update((current) => {
+          const merged = new Map(current.map((user) => [user.userID, user]));
+          users.forEach((user) => merged.set(user.userID, user));
+          return [...merged.values()];
+        }),
         error: (error: unknown) => {
           this.authorLookupError.set(
             `No se pudieron cargar los nombres de quienes comentaron: ${getErrorMessage(error)}`,

@@ -242,11 +242,51 @@
             </dl>
           </section>
 
+          @if (canReassignTicket(item)) {
+            <section class="space-y-3 rounded-panel border border-outline-variant bg-surface p-5 shadow-panel">
+              <h2 class="text-headline-sm font-semibold">Asignar responsable</h2>
+              <p class="text-label-sm text-text-muted">
+                Solo los administradores pueden cambiar a quién se le asigna este ticket.
+              </p>
+              @if (assignmentError()) {
+                <p class="text-body-sm text-destructive" role="alert">{{ assignmentError() }}</p>
+              }
+              @if (isLoadingUsers()) {
+                <p class="text-label-sm text-text-muted" aria-live="polite">Cargando responsables...</p>
+              }
+              <label class="block">
+                <span class="mb-1 block text-label-md font-medium">Responsable</span>
+                <select
+                  class="detail-comment-input w-full"
+                  [ngModel]="selectedAssignedID()"
+                  (ngModelChange)="selectedAssignedID.set($event)"
+                  [disabled]="isLoadingUsers() || isUpdatingAssignment()"
+                  name="ticketAssignee"
+                >
+                  <option [ngValue]="null">Sin asignar</option>
+                  @for (user of availableAssignees(item); track user.userID) {
+                    <option [ngValue]="user.userID">{{ getUserName(user) }} ({{ user.userName }})</option>
+                  }
+                </select>
+              </label>
+              <div class="flex justify-end">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  [disabled]="isLoadingUsers() || isUpdatingAssignment() || selectedAssignedID() === (item.assignedID?.userID ?? null)"
+                  (click)="changeAssignment()"
+                >
+                  {{ isUpdatingAssignment() ? 'Asignando...' : 'Guardar asignación' }}
+                </button>
+              </div>
+            </section>
+          }
+
           @if (canChangeStatus(item)) {
             <section class="space-y-3 rounded-panel border border-outline-variant bg-surface p-5 shadow-panel">
               <h2 class="text-headline-sm font-semibold">Actualizar estado</h2>
               <p class="text-label-sm text-text-muted">
-                Actualiza el progreso desde aquí. La asignación del responsable se administra desde la edición del ticket.
+                Actualiza el progreso del ticket. Los administradores y el agente asignado pueden cambiar el estado.
               </p>
               @if (statusError()) {
                 <p class="text-body-sm text-destructive" role="alert">{{ statusError() }}</p>
